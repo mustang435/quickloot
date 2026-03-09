@@ -168,12 +168,15 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery, ca
 
   // Render category with children
   const renderCategoryItem = (cat, depth = 0) => {
-    const hasChildren = cat.children?.length > 0;
+    if (!cat || !cat.id) return null; // SAFEGUARD
+
+    const hasChildren = Array.isArray(cat.children) && cat.children.length > 0;
     const isExpanded = !!expandedCats[cat.id];
+    const catSlug = cat.slug || cat.id || ''; // Fallback to ID or empty string
     
     return (
       <div 
-        key={cat.id} 
+        key={cat.id || `cat-${Math.random()}`} 
         onMouseEnter={() => hasChildren && setCatExpanded(cat.id, true)}
         onMouseLeave={() => hasChildren && setCatExpanded(cat.id, false)}
       >
@@ -183,7 +186,7 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery, ca
         >
           {/* Main Clickable Link */}
           <Link 
-            href={`/?category=${cat.slug}`} 
+            href={catSlug ? `/?category=${catSlug}` : '/'} 
             onClick={() => setCatOpen(false)} 
             className="flex items-center gap-3 flex-1 py-1"
           >
@@ -249,12 +252,12 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery, ca
             <span className="hidden lg:block">{t('allCategories')}</span>
             <ChevronDown className="w-3 h-3" />
           </button>
-          {catOpen && categories.length > 0 && (
+          {catOpen && categories?.length > 0 && (
             <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 w-72 z-50 py-2 max-h-96 overflow-y-auto">
-              {categoryTree.map(cat => renderCategoryItem(cat))}
+              {categoryTree?.map(cat => renderCategoryItem(cat))}
             </div>
           )}
-          {catOpen && categories.length === 0 && (
+          {catOpen && (!categories || categories.length === 0) && (
             <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 w-64 z-50 py-4 px-4 text-center text-gray-400 text-sm">
               {lang === 'fr' ? 'Aucune catégorie' : 'No categories yet'}
             </div>

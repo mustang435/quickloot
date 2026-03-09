@@ -653,38 +653,43 @@ export default function ProductPage({ params }) {
             {category && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
                 <h3 className="font-bold text-gray-800 mb-3 text-sm">{t.category}</h3>
-                {categoryBreadcrumb && categoryBreadcrumb.length > 0 && (
+                {categoryBreadcrumb?.length > 0 && (
                   <div className="flex flex-col gap-2">
-                    {categoryBreadcrumb.map((cat, idx) => (
-                      <div key={cat.id} className="flex relative" style={{ paddingLeft: `${idx * 12}px` }}>
-                        {/* Tree line visual effect for children */}
-                        {idx > 0 && (
-                          <div className="absolute left-[calc(-12px+8px)] top-0 bottom-0 w-px bg-orange-200" style={{ left: `${(idx - 1) * 12 + 10}px`, bottom: '50%' }} />
-                        )}
-                        {idx > 0 && (
-                          <div className="absolute top-1/2 w-3 h-px bg-orange-200" style={{ left: `${(idx - 1) * 12 + 10}px` }} />
-                        )}
-                        
-                        <Link
-                          href={`/?category=${cat.slug}`}
-                          className={`flex items-center gap-2 px-3 py-2 w-full rounded-lg transition-colors ${
-                            idx === categoryBreadcrumb.length - 1 
-                              ? 'bg-orange-50 hover:bg-orange-100 border border-orange-100' 
-                              : 'hover:bg-gray-50 text-gray-600'
-                          }`}
-                        >
-                          <span className={`${idx === categoryBreadcrumb.length - 1 ? 'text-xl' : 'text-base'}`}>{cat.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-sm truncate ${idx === categoryBreadcrumb.length - 1 ? 'font-semibold text-orange-700' : 'font-medium'}`}>
-                              {lang === 'fr' ? (cat.name_fr || cat.name_en || cat.name) : (cat.name_en || cat.name)}
+                    {categoryBreadcrumb.map((cat, idx) => {
+                      if (!cat || (!cat.slug && !cat.id)) return null; // SAFEGUARD
+                      const catSlug = cat.slug || cat.id || '';
+                      
+                      return (
+                        <div key={cat.id || `bc-${Math.random()}`} className="flex relative" style={{ paddingLeft: `${idx * 12}px` }}>
+                          {/* Tree line visual effect for children */}
+                          {idx > 0 && (
+                            <div className="absolute left-[calc(-12px+8px)] top-0 bottom-0 w-px bg-orange-200" style={{ left: `${(idx - 1) * 12 + 10}px`, bottom: '50%' }} />
+                          )}
+                          {idx > 0 && (
+                            <div className="absolute top-1/2 w-3 h-px bg-orange-200" style={{ left: `${(idx - 1) * 12 + 10}px` }} />
+                          )}
+                          
+                          <Link
+                            href={catSlug ? `/?category=${catSlug}` : '/'}
+                            className={`flex items-center gap-2 px-3 py-2 w-full rounded-lg transition-colors ${
+                              idx === categoryBreadcrumb.length - 1 
+                                ? 'bg-orange-50 hover:bg-orange-100 border border-orange-100' 
+                                : 'hover:bg-gray-50 text-gray-600'
+                            }`}
+                          >
+                            <span className={`${idx === categoryBreadcrumb.length - 1 ? 'text-xl' : 'text-base'}`}>{cat.icon || '📦'}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className={`text-sm truncate ${idx === categoryBreadcrumb.length - 1 ? 'font-semibold text-orange-700' : 'font-medium'}`}>
+                                {lang === 'fr' ? (cat.name_fr || cat.name_en || cat.name || 'Category') : (cat.name_en || cat.name || 'Category')}
+                              </div>
+                              {idx === categoryBreadcrumb.length - 1 && (
+                                <div className="text-xs text-orange-500 mt-0.5">{t.browseAll} →</div>
+                              )}
                             </div>
-                            {idx === categoryBreadcrumb.length - 1 && (
-                              <div className="text-xs text-orange-500 mt-0.5">{t.browseAll} →</div>
-                            )}
-                          </div>
-                        </Link>
-                      </div>
-                    ))}
+                          </Link>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
