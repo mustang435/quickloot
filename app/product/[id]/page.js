@@ -651,31 +651,42 @@ export default function ProductPage({ params }) {
 
             {/* Category (with nested support) */}
             {category && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
                 <h3 className="font-bold text-gray-800 mb-3 text-sm">{t.category}</h3>
-                {categoryBreadcrumb && categoryBreadcrumb.length > 1 && (
-                  <div className="flex items-center gap-1 text-xs text-gray-400 mb-2">
-                    {categoryBreadcrumb.slice(0, -1).map((cat, idx) => (
-                      <span key={cat.id} className="flex items-center gap-1">
-                        {idx > 0 && <ChevronRight className="w-3 h-3" />}
-                        <span>{cat.icon} {lang === 'fr' ? (cat.name_fr || cat.name_en) : (cat.name_en || cat.name)}</span>
-                      </span>
+                {categoryBreadcrumb && categoryBreadcrumb.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    {categoryBreadcrumb.map((cat, idx) => (
+                      <div key={cat.id} className="flex relative" style={{ paddingLeft: `${idx * 12}px` }}>
+                        {/* Tree line visual effect for children */}
+                        {idx > 0 && (
+                          <div className="absolute left-[calc(-12px+8px)] top-0 bottom-0 w-px bg-orange-200" style={{ left: `${(idx - 1) * 12 + 10}px`, bottom: '50%' }} />
+                        )}
+                        {idx > 0 && (
+                          <div className="absolute top-1/2 w-3 h-px bg-orange-200" style={{ left: `${(idx - 1) * 12 + 10}px` }} />
+                        )}
+                        
+                        <Link
+                          href={`/?category=${cat.slug}`}
+                          className={`flex items-center gap-2 px-3 py-2 w-full rounded-lg transition-colors ${
+                            idx === categoryBreadcrumb.length - 1 
+                              ? 'bg-orange-50 hover:bg-orange-100 border border-orange-100' 
+                              : 'hover:bg-gray-50 text-gray-600'
+                          }`}
+                        >
+                          <span className={`${idx === categoryBreadcrumb.length - 1 ? 'text-xl' : 'text-base'}`}>{cat.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm truncate ${idx === categoryBreadcrumb.length - 1 ? 'font-semibold text-orange-700' : 'font-medium'}`}>
+                              {lang === 'fr' ? (cat.name_fr || cat.name_en || cat.name) : (cat.name_en || cat.name)}
+                            </div>
+                            {idx === categoryBreadcrumb.length - 1 && (
+                              <div className="text-xs text-orange-500 mt-0.5">{t.browseAll} →</div>
+                            )}
+                          </div>
+                        </Link>
+                      </div>
                     ))}
-                    <ChevronRight className="w-3 h-3" />
                   </div>
                 )}
-                <Link
-                  href={`/?category=${category.slug}`}
-                  className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl hover:bg-orange-100 transition-colors"
-                >
-                  <span className="text-2xl">{category.icon}</span>
-                  <div>
-                    <div className="font-semibold text-sm text-orange-700">
-                      {lang === 'fr' ? (category.name_fr || category.name_en || category.name) : (category.name_en || category.name)}
-                    </div>
-                    <div className="text-xs text-orange-500">{t.browseAll} →</div>
-                  </div>
-                </Link>
               </div>
             )}
           </div>
