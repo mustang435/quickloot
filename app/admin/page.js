@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Edit2, RefreshCw, CheckCircle, XCircle, Clock, ExternalLink, ArrowLeft, Zap, Save, X, AlertCircle, LogOut, Shield, Home, Upload, Image as ImageIcon, ChevronRight, FolderTree } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
 // ============================================================
@@ -1149,27 +1148,31 @@ function AllPriceLinksTab() {
 // MAIN ADMIN PAGE
 // ============================================================
 export default function AdminPage() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState('products');
   const [authenticated, setAuthenticated] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const token = getAdminToken();
     if (!token || !isTokenValid(token)) {
-      router.push('/admin/login');
-    } else {
-      // Ensure cookie is set for middleware
-      document.cookie = `ql_admin_token=${token}; path=/; max-age=${24*60*60}; SameSite=Strict`;
-      setAuthenticated(true);
+      // Redirect to login using window.location for reliability
+      window.location.href = '/admin/login';
+      return;
     }
+    
+    // Ensure cookie is set for middleware with SameSite=Lax
+    document.cookie = `ql_admin_token=${token}; path=/; max-age=${24*60*60}; SameSite=Lax`;
+    setAuthenticated(true);
     setChecking(false);
-  }, [router]);
+  }, []);
 
   function handleLogout() {
     localStorage.removeItem('ql_admin_token');
     document.cookie = 'ql_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    router.push('/admin/login');
+    // Use window.location for reliable redirect
+    window.location.href = '/admin/login';
   }
 
   if (checking) {

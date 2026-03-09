@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Zap, Lock, Eye, EyeOff, Shield, AlertTriangle, CheckCircle, RefreshCw, Home, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function AdminLogin() {
-  const router = useRouter();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -14,32 +12,41 @@ export default function AdminLogin() {
   const [success, setSuccess] = useState('');
   const [attempts, setAttempts] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    
     // Check if already logged in
-    const token = localStorage.getItem('ql_admin_token');
-    if (token) {
-      try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]));
-          if (payload.exp && payload.exp * 1000 > Date.now() && payload.role === 'admin') {
-            // Set cookie for middleware
-            document.cookie = `ql_admin_token=${token}; path=/; max-age=${24*60*60}; SameSite=Strict`;
-            router.push('/admin');
-            return;
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('ql_admin_token');
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload.exp && payload.exp * 1000 > Date.now() && payload.role === 'admin') {
+              // Set cookie for middleware with Lax (works better cross-origin)
+              document.cookie = `ql_admin_token=${token}; path=/; max-age=${24*60*60}; SameSite=Lax`;
+              // Use window.location for reliable redirect
+              setRedirecting(true);
+              window.location.href = '/admin';
+              return;
+            }
           }
+        } catch (e) {
+          console.error('Token parse error:', e);
         }
-      } catch (e) {}
-      localStorage.removeItem('ql_admin_token');
-      document.cookie = 'ql_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        // Invalid token, clear it
+        localStorage.removeItem('ql_admin_token');
+        document.cookie = 'ql_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      }
     }
-  }, [router]);
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!password.trim()) return;
+    if (!password.trim() || loading || redirecting) return;
 
     setLoading(true);
     setError('');
@@ -55,24 +62,48 @@ export default function AdminLogin() {
       const data = await res.json();
 
       if (res.ok && data.token) {
-        setSuccess('Login successful! Redirecting...');
+        // Store token in localStorage
         localStorage.setItem('ql_admin_token', data.token);
-        // Set cookie for middleware
-        document.cookie = `ql_admin_token=${data.token}; path=/; max-age=${24*60*60}; SameSite=Strict`;
-        setTimeout(() => router.push('/admin'), 1000);
+        
+        // Set cookie with SameSite=Lax for better compatibility
+        document.cookie = `ql_admin_token=${data.token}; path=/; max-age=${24*60*60}; SameSite=Lax`;
+        
+        setSuccess('Login successful! Redirecting...');
+        setRedirecting(true);
+        setLoading(false);
+        
+        // Use window.location.href for reliable redirect (not router.push)
+        // Small delay to show success message
+        setTimeout(() => {
+          window.location.href = '/admin';
+        }, 800);
       } else {
         setAttempts(prev => prev + 1);
         setError(data.error || 'Login failed. Please try again.');
         setPassword('');
+        setLoading(false);
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError('Connection error. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
 
   if (!mounted) return null;
+
+  // Show loading screen while redirecting
+  if (redirecting) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-orange-950 flex items-center justify-center p-4">
+        <div className="text-center">
+          <RefreshCw className="w-10 h-10 text-orange-500 animate-spin mx-auto mb-4" />
+          <p className="text-white font-medium">Redirecting to Admin Panel...</p>
+          <p className="text-gray-400 text-sm mt-2">Please wait...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-orange-950 flex items-center justify-center p-4">
@@ -133,7 +164,8 @@ export default function AdminLogin() {
                   placeholder="Enter admin password"
                   autoComplete="current-password"
                   required
-                  className="w-full bg-white/10 border border-white/20 text-white placeholder-gray-500 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                  disabled={loading}
+                  className="w-full bg-white/10 border border-white/20 text-white placeholder-gray-500 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm disabled:opacity-50"
                 />
                 <button
                   type="button"

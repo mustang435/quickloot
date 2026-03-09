@@ -10,27 +10,53 @@ export function middleware(request) {
     
     // If no token, redirect to login
     if (!token) {
+      console.log('[Middleware] No token found, redirecting to login');
       const loginUrl = new URL('/admin/login', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
     
     // Basic token validation (expiry check)
     try {
       const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        if (!payload.exp || payload.exp * 1000 < Date.now() || payload.role !== 'admin') {
-          const loginUrl = new URL('/admin/login', request.url);
-          return NextResponse.redirect(loginUrl);
-        }
-      } else {
+      if (parts.length !== 3) {
+        console.log('[Middleware] Invalid token format');
         const loginUrl = new URL('/admin/login', request.url);
-        return NextResponse.redirect(loginUrl);
+        const response = NextResponse.redirect(loginUrl);
+        // Clear invalid cookie
+        response.cookies.delete('ql_admin_token');
+        return response;
       }
+      
+      const payload = JSON.parse(atob(parts[1]));
+      
+      // Check expiry
+      if (!payload.exp || payload.exp * 1000 < Date.now()) {
+        console.log('[Middleware] Token expired');
+        const loginUrl = new URL('/admin/login', request.url);
+        const response = NextResponse.redirect(loginUrl);
+        response.cookies.delete('ql_admin_token');
+        return response;
+      }
+      
+      // Check role
+      if (payload.role !== 'admin') {
+        console.log('[Middleware] Invalid role');
+        const loginUrl = new URL('/admin/login', request.url);
+        const response = NextResponse.redirect(loginUrl);
+        response.cookies.delete('ql_admin_token');
+        return response;
+      }
+      
+      // Token is valid, allow access
+      console.log('[Middleware] Token valid, allowing access');
+      return NextResponse.next();
+      
     } catch (e) {
+      console.log('[Middleware] Token parse error:', e.message);
       const loginUrl = new URL('/admin/login', request.url);
-      return NextResponse.redirect(loginUrl);
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.delete('ql_admin_token');
+      return response;
     }
   }
   
