@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, ChevronDown, ExternalLink, TrendingDown, Zap, Globe, Star, ArrowRight, RefreshCw, Menu, X, ChevronRight, ShoppingCart } from 'lucide-react';
 import { translations, CATEGORIES } from '@/lib/translations';
+import CookieConsent from '@/components/CookieConsent';
 import Link from 'next/link';
 
 // ============================================================
@@ -537,6 +538,7 @@ export default function App() {
       </main>
 
       <Footer t={t} lang={lang} />
+      <CookieConsent lang={lang} />
     </div>
   );
 }

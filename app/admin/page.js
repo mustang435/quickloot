@@ -1,9 +1,40 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, RefreshCw, CheckCircle, XCircle, Clock, ExternalLink, ArrowLeft, Zap, Save, X, ChevronDown, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, RefreshCw, CheckCircle, XCircle, Clock, ExternalLink, ArrowLeft, Zap, Save, X, AlertCircle, LogOut, Shield } from 'lucide-react';
 import { CATEGORIES, DEFAULT_STORES } from '@/lib/translations';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+// ============================================================
+// Auth utilities (client-side)
+// ============================================================
+function getAdminToken() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('ql_admin_token');
+}
+
+function isTokenValid(token) {
+  if (!token) return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.exp && payload.exp * 1000 > Date.now() && payload.role === 'admin';
+  } catch (e) { return false; }
+}
+
+function authFetch(url, options = {}) {
+  const token = getAdminToken();
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+}
 
 // ============================================================
 // HELPERS
@@ -83,7 +114,7 @@ function ProductsTab() {
 
   async function loadProducts() {
     setLoading(true);
-    const res = await fetch('/api/products?limit=100&sort=recent');
+    const res = await authFetch('/api/products?limit=100&sort=recent');
     if (res.ok) {
       const data = await res.json();
       setProducts(data.products || []);
@@ -92,7 +123,7 @@ function ProductsTab() {
   }
 
   async function loadStores() {
-    const res = await fetch('/api/stores');
+    const res = await authFetch('/api/stores');
     if (res.ok) setStores(await res.json());
   }
 
@@ -127,13 +158,13 @@ function ProductsTab() {
       };
       let res;
       if (modal === 'edit' && selectedProduct) {
-        res = await fetch(`/api/products/${selectedProduct.id}`, {
+        res = await authFetch(`/api/products/${selectedProduct.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        res = await fetch('/api/products', {
+        res = await authFetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -156,7 +187,7 @@ function ProductsTab() {
 
   async function deleteProduct(id) {
     if (!confirm('Delete this product and all its price links?')) return;
-    await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    await authFetch(`/api/products/${id}`, { method: 'DELETE' });
     loadProducts();
   }
 
@@ -275,7 +306,7 @@ function PriceLinksModal({ product, stores, onClose }) {
 
   async function loadLinks() {
     setLoading(true);
-    const res = await fetch(`/api/price-links?productId=${product.id}`);
+    const res = await authFetch(`/api/price-links?productId=${product.id}`);
     if (res.ok) setLinks(await res.json());
     setLoading(false);
   }
@@ -288,7 +319,7 @@ function PriceLinksModal({ product, stores, onClose }) {
       const payload = { ...form, productId: product.id };
       const selected = stores.find(s => s.id === form.storeId);
       if (selected && !form.storeName) payload.storeName = selected.name;
-      const res = await fetch('/api/price-links', {
+      const res = await authFetch('/api/price-links', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -310,7 +341,7 @@ function PriceLinksModal({ product, stores, onClose }) {
 
   async function deleteLink(id) {
     if (!confirm('Delete this price link?')) return;
-    await fetch(`/api/price-links/${id}`, { method: 'DELETE' });
+    await authFetch(`/api/price-links/${id}`, { method: 'DELETE' });
     loadLinks();
   }
 
@@ -318,7 +349,7 @@ function PriceLinksModal({ product, stores, onClose }) {
     setScraping(prev => ({ ...prev, [id]: true }));
     setMsg('');
     try {
-      const res = await fetch('/api/scrape', {
+      const res = await authFetch('/api/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ linkId: id }),
@@ -453,14 +484,14 @@ function StoresTab() {
 
   async function loadStores() {
     setLoading(true);
-    const res = await fetch('/api/stores');
+    const res = await authFetch('/api/stores');
     if (res.ok) setStores(await res.json());
     setLoading(false);
   }
 
   async function seedStores() {
     setSeeding(true);
-    await fetch('/api/seed', { method: 'POST' });
+    await authFetch('/api/seed', { method: 'POST' });
     loadStores();
     setSeeding(false);
   }
@@ -474,7 +505,7 @@ function StoresTab() {
         ...form,
         scrapingConfig: form.scrapingConfig?.price ? form.scrapingConfig : null,
       };
-      const res = await fetch('/api/stores', {
+      const res = await authFetch('/api/stores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -494,7 +525,7 @@ function StoresTab() {
 
   async function deleteStore(id) {
     if (!confirm('Delete this store?')) return;
-    await fetch(`/api/stores/${id}`, { method: 'DELETE' });
+    await authFetch(`/api/stores/${id}`, { method: 'DELETE' });
     loadStores();
   }
 
@@ -575,7 +606,7 @@ function ScrapingTab() {
 
   async function loadStatus() {
     setLoading(true);
-    const res = await fetch('/api/scrape/status');
+    const res = await authFetch('/api/scrape/status');
     if (res.ok) setStatus(await res.json());
     setLoading(false);
   }
@@ -584,7 +615,7 @@ function ScrapingTab() {
     if (!confirm('Start scraping all price links? This may take a while.')) return;
     setScraping(true);
     setMsg('');
-    const res = await fetch('/api/scrape', {
+    const res = await authFetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
@@ -668,7 +699,28 @@ function ScrapingTab() {
 // MAIN ADMIN PAGE
 // ============================================================
 export default function AdminPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('products');
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+
+  useEffect(() => {
+    const token = getAdminToken();
+    if (!isTokenValid(token)) {
+      router.push('/admin/login');
+    } else {
+      setIsAuthed(true);
+    }
+    setAuthChecked(true);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('ql_admin_token');
+    router.push('/admin/login');
+  };
+
+  if (!authChecked) return null;
+  if (!isAuthed) return null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -688,8 +740,21 @@ export default function AdminPage() {
               <h1 className="font-black text-gray-800">QuickLoot<span className="text-orange-500">.net</span> Admin</h1>
             </div>
           </div>
-          <div className="text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
-            ⏰ Auto-scrape every 3 hours
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full border border-green-200">
+              <Shield className="w-3.5 h-3.5" />
+              <span>JWT Secured</span>
+            </div>
+            <div className="text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full hidden sm:block">
+              ⏰ Auto-scrape every 3 hours
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-full border border-red-200 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Logout
+            </button>
           </div>
         </div>
       </header>
@@ -738,9 +803,9 @@ function AllPriceLinksTab() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/price-links').then(r => r.json()),
-      fetch('/api/products?limit=200&sort=recent').then(r => r.json()),
-      fetch('/api/stores').then(r => r.json()),
+      authFetch('/api/price-links').then(r => r.json()),
+      authFetch('/api/products?limit=200&sort=recent').then(r => r.json()),
+      authFetch('/api/stores').then(r => r.json()),
     ]).then(([l, p, s]) => {
       setLinks(l);
       setProducts(p.products || []);
@@ -754,7 +819,7 @@ function AllPriceLinksTab() {
 
   async function scrapeLink(id) {
     setScraping(prev => ({ ...prev, [id]: true }));
-    const res = await fetch('/api/scrape', {
+    const res = await authFetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ linkId: id }),
@@ -762,13 +827,13 @@ function AllPriceLinksTab() {
     const data = await res.json();
     setMsg(data.success ? `✅ Price: €${data.price}` : `⚠️ ${data.error}`);
     setScraping(prev => ({ ...prev, [id]: false }));
-    const updated = await fetch('/api/price-links').then(r => r.json());
+    const updated = await authFetch('/api/price-links').then(r => r.json());
     setLinks(updated);
   }
 
   async function deleteLink(id) {
     if (!confirm('Delete?')) return;
-    await fetch(`/api/price-links/${id}`, { method: 'DELETE' });
+    await authFetch(`/api/price-links/${id}`, { method: 'DELETE' });
     setLinks(links.filter(l => l.id !== id));
   }
 
