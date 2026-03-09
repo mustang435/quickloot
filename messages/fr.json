@@ -1,0 +1,91 @@
+{
+  "common": {
+    "search": "Rechercher des produits, marques...",
+    "searchBtn": "Rechercher",
+    "home": "Accueil",
+    "allCategories": "Toutes les catégories",
+    "admin": "Admin",
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "back": "Retour"
+  },
+  "hero": {
+    "badge": "Meilleur prix garanti",
+    "badge2": "Comparaison des magasins canadiens",
+    "title": "Comparez les prix, économisez plus",
+    "subtitle": "Trouvez les meilleures aubaines chez Amazon.ca, Walmart, EB Games, Staples et d'autres magasins canadiens",
+    "searchPlaceholder": "Que recherchez-vous?"
+  },
+  "categories": {
+    "title": "Catégories",
+    "electronics": "Électronique",
+    "computers": "Ordinateurs et tablettes",
+    "phones": "Téléphones et accessoires",
+    "tvAudio": "Télé et audio",
+    "homeAppliances": "Électroménagers",
+    "beauty": "Beauté et santé",
+    "babyKids": "Bébé et enfants",
+    "sports": "Sports et plein air",
+    "gaming": "Jeux vidéo",
+    "books": "Livres et médias",
+    "automotive": "Automobile",
+    "supermarket": "Épicerie"
+  },
+  "product": {
+    "bestPrice": "Meilleur prix",
+    "lowestPrice": "Prix le plus bas",
+    "goToStore": "Magasiner",
+    "priceHistory": "Historique des prix",
+    "compare": "Comparer",
+    "updated": "Mis à jour",
+    "outOfStock": "Rupture de stock",
+    "inStock": "En stock",
+    "noResults": "Aucun produit trouvé",
+    "from": "à partir de",
+    "stores": "magasins",
+    "noPrice": "N/D",
+    "featured": "Produits vedettes",
+    "viewAll": "Tout voir",
+    "recentlyUpdated": "Récemment mis à jour",
+    "priceComparison": "Comparaison des prix",
+    "store": "Magasin",
+    "price": "Prix",
+    "status": "État",
+    "action": "Action"
+  },
+  "sort": {
+    "sortBy": "Trier par",
+    "priceLowHigh": "Prix: croissant",
+    "priceHighLow": "Prix: décroissant",
+    "recent": "Récemment ajouté"
+  },
+  "footer": {
+    "description": "QuickLoot.net vous aide à trouver les meilleurs prix dans les magasins en ligne canadiens.",
+    "about": "À propos",
+    "contact": "Nous joindre",
+    "privacy": "Politique de confidentialité",
+    "terms": "Conditions d'utilisation",
+    "copyright": "© 2025 QuickLoot.net - Tous droits réservés"
+  },
+  "cookie": {
+    "title": "Préférences de témoins",
+    "message": "Nous utilisons des témoins pour améliorer votre expérience de navigation, analyser le trafic et personnaliser le contenu.",
+    "acceptAll": "Accepter tous les témoins",
+    "essentialOnly": "Essentiels seulement",
+    "essential": "Essentiels",
+    "essentialDesc": "Requis pour le fonctionnement",
+    "analytics": "Analytiques",
+    "analyticsDesc": "Nous aident à améliorer",
+    "marketing": "Marketing",
+    "marketingDesc": "Publicités personnalisées",
+    "required": "Requis",
+    "optional": "Optionnel"
+  },
+  "language": {
+    "en": "English",
+    "fr": "Français"
+  }
+}

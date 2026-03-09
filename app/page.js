@@ -54,12 +54,12 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery }) 
       <div className="bg-gradient-to-r from-orange-500 to-amber-500 py-1.5 px-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4 text-white text-xs">
-            <span className="flex items-center gap-1"><TrendingDown className="w-3 h-3" /> Best price guarantee</span>
-            <span className="hidden sm:flex items-center gap-1"><Globe className="w-3 h-3" /> Global stores comparison</span>
+            <span className="flex items-center gap-1"><TrendingDown className="w-3 h-3" /> {lang === 'fr' ? 'Meilleur prix garanti' : 'Best price guarantee'}</span>
+            <span className="hidden sm:flex items-center gap-1"><Globe className="w-3 h-3" /> {lang === 'fr' ? 'Magasins canadiens' : 'Canadian stores comparison'}</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => switchLang('en')} className={`text-xs px-2 py-0.5 rounded transition-all ${lang === 'en' ? 'bg-white text-orange-600 font-semibold' : 'text-white hover:bg-white/20'}`}>🇬🇧 EN</button>
-            <button onClick={() => switchLang('fr')} className={`text-xs px-2 py-0.5 rounded transition-all ${lang === 'fr' ? 'bg-white text-orange-600 font-semibold' : 'text-white hover:bg-white/20'}`}>🇫🇷 FR</button>
+            <button onClick={() => switchLang('en')} className={`text-xs px-2 py-0.5 rounded transition-all ${lang === 'en' ? 'bg-white text-orange-600 font-semibold' : 'text-white hover:bg-white/20'}`}>🇨🇦 EN</button>
+            <button onClick={() => switchLang('fr')} className={`text-xs px-2 py-0.5 rounded transition-all ${lang === 'fr' ? 'bg-white text-orange-600 font-semibold' : 'text-white hover:bg-white/20'}`}>🇨🇦 FR</button>
           </div>
         </div>
       </div>
@@ -141,11 +141,11 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery }) 
 // Product Card
 // ============================================================
 function ProductCard({ product, t, lang }) {
-  const formatPrice = (price, currency = 'EUR') => {
+  const formatPrice = (price, currency = 'CAD') => {
     if (!price) return t('noPrice');
     try {
-      return new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-GB', { style: 'currency', currency: currency || 'EUR', minimumFractionDigits: 2 }).format(price);
-    } catch { return `€${price.toFixed(2)}`; }
+      return new Intl.NumberFormat(lang === 'fr' ? 'fr-CA' : 'en-CA', { style: 'currency', currency: currency || 'CAD', minimumFractionDigits: 2 }).format(price);
+    } catch { return `$${price.toFixed(2)}`; }
   };
 
   return (
@@ -217,13 +217,13 @@ function Footer({ t, lang }) {
             </ul>
           </div>
           <div>
-            <h4 className="text-white font-semibold mb-3 text-sm">Partner Stores</h4>
+            <h4 className="text-white font-semibold mb-3 text-sm">{lang === 'fr' ? 'Magasins partenaires' : 'Partner Stores'}</h4>
             <ul className="space-y-1.5 text-xs text-gray-400">
-              <li>🛒 Amazon</li>
-              <li>🏷️ eBay</li>
-              <li>📦 AliExpress</li>
-              <li>📦 Fnac</li>
-              <li>🏷️ Cdiscount</li>
+              <li>🛒 Amazon.ca</li>
+              <li>🏪 Walmart Canada</li>
+              <li>🎮 EB Games</li>
+              <li>📎 Staples Canada</li>
+              <li>📺 Best Buy Canada</li>
             </ul>
           </div>
           <div>

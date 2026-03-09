@@ -15,16 +15,16 @@ function useLang() {
   return { lang };
 }
 
-function formatPrice(price, currency = 'EUR', lang = 'en') {
+function formatPrice(price, currency = 'CAD', lang = 'en') {
   if (!price) return 'N/A';
   try {
-    return new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-GB', {
+    return new Intl.NumberFormat(lang === 'fr' ? 'fr-CA' : 'en-CA', {
       style: 'currency',
-      currency: currency || 'EUR',
+      currency: currency || 'CAD',
       minimumFractionDigits: 2,
     }).format(price);
   } catch {
-    return `${currency} ${price.toFixed(2)}`;
+    return `$${price.toFixed(2)}`;
   }
 }
 

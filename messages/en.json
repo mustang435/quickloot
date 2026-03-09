@@ -1,0 +1,91 @@
+{
+  "common": {
+    "search": "Search for products, brands...",
+    "searchBtn": "Search",
+    "home": "Home",
+    "allCategories": "All Categories",
+    "admin": "Admin",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "back": "Back"
+  },
+  "hero": {
+    "badge": "Best price guarantee",
+    "badge2": "Canadian stores comparison",
+    "title": "Compare Prices, Save More",
+    "subtitle": "Find the best deals from Amazon.ca, Walmart, EB Games, Staples and more Canadian stores",
+    "searchPlaceholder": "What are you looking for?"
+  },
+  "categories": {
+    "title": "Categories",
+    "electronics": "Electronics",
+    "computers": "Computers & Tablets",
+    "phones": "Phones & Accessories",
+    "tvAudio": "TV & Audio",
+    "homeAppliances": "Home Appliances",
+    "beauty": "Beauty & Health",
+    "babyKids": "Baby & Kids",
+    "sports": "Sports & Outdoors",
+    "gaming": "Gaming",
+    "books": "Books & Media",
+    "automotive": "Automotive",
+    "supermarket": "Grocery"
+  },
+  "product": {
+    "bestPrice": "Best Price",
+    "lowestPrice": "Lowest Price",
+    "goToStore": "Go to Store",
+    "priceHistory": "Price History",
+    "compare": "Compare",
+    "updated": "Updated",
+    "outOfStock": "Out of Stock",
+    "inStock": "In Stock",
+    "noResults": "No products found",
+    "from": "from",
+    "stores": "stores",
+    "noPrice": "N/A",
+    "featured": "Featured Products",
+    "viewAll": "View All",
+    "recentlyUpdated": "Recently Updated",
+    "priceComparison": "Price Comparison",
+    "store": "Store",
+    "price": "Price",
+    "status": "Status",
+    "action": "Action"
+  },
+  "sort": {
+    "sortBy": "Sort By",
+    "priceLowHigh": "Price: Low to High",
+    "priceHighLow": "Price: High to Low",
+    "recent": "Recently Added"
+  },
+  "footer": {
+    "description": "QuickLoot.net helps you find the best prices across Canadian online stores.",
+    "about": "About",
+    "contact": "Contact",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "copyright": "© 2025 QuickLoot.net - All rights reserved"
+  },
+  "cookie": {
+    "title": "Cookie Preferences",
+    "message": "We use cookies to enhance your browsing experience, analyze site traffic, and personalize content.",
+    "acceptAll": "Accept All Cookies",
+    "essentialOnly": "Essential Only",
+    "essential": "Essential",
+    "essentialDesc": "Required for site to work",
+    "analytics": "Analytics",
+    "analyticsDesc": "Help us improve",
+    "marketing": "Marketing",
+    "marketingDesc": "Personalized ads",
+    "required": "Required",
+    "optional": "Optional"
+  },
+  "language": {
+    "en": "English",
+    "fr": "Français"
+  }
+}
