@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, ExternalLink, TrendingDown, Clock, RefreshCw, Star, ShoppingCart, ChevronRight, Zap, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ExternalLink, TrendingDown, Clock, RefreshCw, ShoppingCart, ChevronRight, Zap, TrendingUp, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { CATEGORIES } from '@/lib/translations';
 import Link from 'next/link';
-import { use } from 'react';
 
 function useLang() {
   const [lang, setLang] = useState('en');
@@ -79,7 +78,7 @@ function PriceHistoryChart({ history, currency }) {
 }
 
 export default function ProductPage({ params }) {
-  const { id } = use(params);
+  const id = params.id;
   const { lang } = useLang();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
