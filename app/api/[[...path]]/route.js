@@ -17,19 +17,20 @@ import {
 } from '@/lib/auth';
 
 // ============================================================
-// CRON JOB INITIALIZATION
+// CRON JOB - Local development only (Vercel uses /api/cron)
 // ============================================================
-let cronJob = null;
 let cronInitialized = false;
 let lastCronRun = null;
 let cronRunning = false;
 
 async function initializeCron() {
-  if (cronInitialized) return;
+  // Skip in production - Vercel Cron handles this via /api/cron
+  if (process.env.VERCEL || cronInitialized) return;
   cronInitialized = true;
+  
   try {
     const { default: cron } = await import('node-cron');
-    cronJob = cron.schedule('0 */3 * * *', async () => {
+    cron.schedule('0 */3 * * *', async () => {
       if (cronRunning) return;
       console.log('[Cron] Starting scheduled price update...');
       cronRunning = true;
@@ -44,7 +45,7 @@ async function initializeCron() {
         cronRunning = false;
       }
     });
-    console.log('[Cron] Initialized - runs every 3 hours');
+    console.log('[Cron] Initialized - runs every 3 hours (local dev)');
   } catch (err) {
     console.error('[Cron] Failed:', err.message);
   }
