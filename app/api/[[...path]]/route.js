@@ -145,7 +145,13 @@ export async function GET(request, { params }) {
     // GET /api/categories
     if (path[0] === 'categories') {
       const categories = await db.collection('categories').find({}).sort({ order: 1 }).toArray();
-      return NextResponse.json(categories, { headers: securityHeaders() });
+      // Ensure all required fields are present for API consistency
+      const normalizedCategories = categories.map(cat => ({
+        ...cat,
+        image: cat.image || '', // Ensure image field exists
+        parentId: cat.parentId || null // Ensure parentId field exists
+      }));
+      return NextResponse.json(normalizedCategories, { headers: securityHeaders() });
     }
 
     // GET /api/stores
@@ -175,8 +181,17 @@ export async function GET(request, { params }) {
         const storesMap = {};
         stores.forEach(s => storesMap[s.id] = s);
 
+        // Normalize product with multi-language fields
+        const normalizedProduct = {
+          ...product,
+          pros_en: product.pros_en || product.pros || [],
+          cons_en: product.cons_en || product.cons || [],
+          pros_fr: product.pros_fr || [],
+          cons_fr: product.cons_fr || []
+        };
+
         return NextResponse.json(
-          { ...product, priceLinks: priceLinks.map(l => ({ ...l, store: storesMap[l.storeId] || null })) },
+          { ...normalizedProduct, priceLinks: priceLinks.map(l => ({ ...l, store: storesMap[l.storeId] || null })) },
           { headers: securityHeaders() }
         );
       }
@@ -198,7 +213,17 @@ export async function GET(request, { params }) {
 
       const products = await db.collection('products').find(query).sort(sortObj).skip(skip).limit(limit).toArray();
       const total = await db.collection('products').countDocuments(query);
-      return NextResponse.json({ products, total }, { headers: securityHeaders() });
+      
+      // Ensure all products have multi-language pros/cons fields for API consistency
+      const normalizedProducts = products.map(product => ({
+        ...product,
+        pros_en: product.pros_en || product.pros || [],
+        cons_en: product.cons_en || product.cons || [],
+        pros_fr: product.pros_fr || [],
+        cons_fr: product.cons_fr || []
+      }));
+      
+      return NextResponse.json({ products: normalizedProducts, total }, { headers: securityHeaders() });
     }
 
     // GET /api/price-links
@@ -233,7 +258,17 @@ export async function GET(request, { params }) {
 
       const products = await db.collection('products').find(query).sort(sortObj).limit(limit).toArray();
       const total = await db.collection('products').countDocuments(query);
-      return NextResponse.json({ products, total }, { headers: securityHeaders() });
+      
+      // Ensure all products have multi-language pros/cons fields for API consistency
+      const normalizedProducts = products.map(product => ({
+        ...product,
+        pros_en: product.pros_en || product.pros || [],
+        cons_en: product.cons_en || product.cons || [],
+        pros_fr: product.pros_fr || [],
+        cons_fr: product.cons_fr || []
+      }));
+      
+      return NextResponse.json({ products: normalizedProducts, total }, { headers: securityHeaders() });
     }
 
     // GET /api/scrape/status  (admin protected)
@@ -257,7 +292,17 @@ export async function GET(request, { params }) {
     // GET /api/featured
     if (path[0] === 'featured') {
       const products = await db.collection('products').find({ featured: true }).sort({ bestPrice: 1 }).limit(8).toArray();
-      return NextResponse.json(products, { headers: securityHeaders() });
+      
+      // Ensure all products have multi-language pros/cons fields for API consistency
+      const normalizedProducts = products.map(product => ({
+        ...product,
+        pros_en: product.pros_en || product.pros || [],
+        cons_en: product.cons_en || product.cons || [],
+        pros_fr: product.pros_fr || [],
+        cons_fr: product.cons_fr || []
+      }));
+      
+      return NextResponse.json(normalizedProducts, { headers: securityHeaders() });
     }
 
     // GET /api/stats

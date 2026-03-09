@@ -1,369 +1,471 @@
 #!/usr/bin/env python3
 """
-QuickLoot.net API Security Testing Suite
-Tests all security features including authentication, authorization, rate limiting, and brute force protection.
+QuickLoot.net API Testing Suite
+Tests all the key API endpoints with specific validation requirements
 """
 
 import requests
-import time
 import json
-import sys
+import base64
+from datetime import datetime, timezone
+import uuid
+import time
 
-# Configuration
-BASE_URL = "https://price-compare-test.preview.emergentagent.com/api"
-ADMIN_PASSWORD = "quickloot_strong_password_123!"
-WRONG_PASSWORD = "wrong_password"
+# Backend URL from environment
+BASE_URL = "https://price-compare-test.preview.emergentagent.com"
+API_BASE = f"{BASE_URL}/api"
 
-def print_test_result(test_name, success, message=""):
-    """Print formatted test results"""
-    status = "✅ PASS" if success else "❌ FAIL"
-    print(f"{status} {test_name}: {message}")
-    return success
+def log(message):
+    """Simple logging with timestamp"""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    print(f"[{timestamp}] {message}")
 
-def test_admin_login_correct_password():
-    """Test admin login with correct password"""
-    try:
-        response = requests.post(
-            f"{BASE_URL}/admin/login",
-            json={"password": ADMIN_PASSWORD},
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if "token" in data and data.get("message") == "Login successful":
-                # Store token for later use
-                global auth_token
-                auth_token = data["token"]
-                return print_test_result("Admin Login (Correct Password)", True, 
-                    f"JWT token received: {auth_token[:20]}...")
-            else:
-                return print_test_result("Admin Login (Correct Password)", False, 
-                    f"Missing token or message in response: {data}")
-        else:
-            return print_test_result("Admin Login (Correct Password)", False, 
-                f"Status {response.status_code}: {response.text}")
-            
-    except Exception as e:
-        return print_test_result("Admin Login (Correct Password)", False, f"Error: {str(e)}")
-
-def test_admin_login_wrong_password():
-    """Test admin login with wrong password"""
-    try:
-        response = requests.post(
-            f"{BASE_URL}/admin/login",
-            json={"password": WRONG_PASSWORD},
-            timeout=10
-        )
-        
-        if response.status_code == 401:
-            data = response.json()
-            if "error" in data and "Invalid password" in data["error"]:
-                return print_test_result("Admin Login (Wrong Password)", True, 
-                    f"Correctly rejected with: {data['error']}")
-            else:
-                return print_test_result("Admin Login (Wrong Password)", False, 
-                    f"Wrong error message: {data}")
-        else:
-            return print_test_result("Admin Login (Wrong Password)", False, 
-                f"Expected 401, got {response.status_code}: {response.text}")
-            
-    except Exception as e:
-        return print_test_result("Admin Login (Wrong Password)", False, f"Error: {str(e)}")
-
-def test_jwt_token_validation_with_token():
-    """Test JWT token validation on protected routes with valid token"""
-    global auth_token
-    
-    if not auth_token:
-        return print_test_result("JWT Token Validation (With Token)", False, 
-            "No auth token available from login test")
+def test_categories_get():
+    """Test GET /api/categories - Should return categories sorted by order field"""
+    log("Testing GET /api/categories...")
     
     try:
-        headers = {"Authorization": f"Bearer {auth_token}"}
-        response = requests.post(
-            f"{BASE_URL}/products",
-            json={
-                "name": "Security Test Product",
-                "description": "Test product for JWT validation",
-                "category": "electronics",
-                "brand": "TestBrand",
-                "featured": False
-            },
-            headers=headers,
-            timeout=10
-        )
+        response = requests.get(f"{API_BASE}/categories")
         
-        if response.status_code == 201:
-            data = response.json()
-            if "id" in data and data.get("name") == "Security Test Product":
-                return print_test_result("JWT Token Validation (With Token)", True, 
-                    f"Product created successfully with ID: {data['id']}")
-            else:
-                return print_test_result("JWT Token Validation (With Token)", False, 
-                    f"Invalid response data: {data}")
-        else:
-            return print_test_result("JWT Token Validation (With Token)", False, 
-                f"Status {response.status_code}: {response.text}")
+        if response.status_code != 200:
+            log(f"❌ Categories GET failed with status {response.status_code}: {response.text}")
+            return False
             
-    except Exception as e:
-        return print_test_result("JWT Token Validation (With Token)", False, f"Error: {str(e)}")
-
-def test_jwt_token_validation_without_token():
-    """Test JWT token validation on protected routes without token"""
-    try:
-        response = requests.post(
-            f"{BASE_URL}/products",
-            json={
-                "name": "Unauthorized Test Product",
-                "description": "This should fail",
-                "category": "electronics"
-            },
-            timeout=10
-        )
+        categories = response.json()
+        log(f"✅ Categories GET successful - Received {len(categories)} categories")
         
-        if response.status_code == 401:
-            data = response.json()
-            if "error" in data and "Unauthorized" in data["error"]:
-                return print_test_result("JWT Token Validation (Without Token)", True, 
-                    f"Correctly rejected with: {data['error']}")
-            else:
-                return print_test_result("JWT Token Validation (Without Token)", False, 
-                    f"Wrong error message: {data}")
-        else:
-            return print_test_result("JWT Token Validation (Without Token)", False, 
-                f"Expected 401, got {response.status_code}: {response.text}")
+        # Check if categories are sorted by order field
+        if len(categories) > 1:
+            for i in range(1, len(categories)):
+                prev_order = categories[i-1].get('order', 99)
+                curr_order = categories[i].get('order', 99)
+                if prev_order > curr_order:
+                    log(f"❌ Categories not sorted by order field: {prev_order} > {curr_order}")
+                    return False
+            log("✅ Categories correctly sorted by order field")
+        
+        # Validate required fields: id, name_en, name_fr, slug, icon, image, order, parentId
+        required_fields = ['id', 'name_en', 'name_fr', 'slug', 'icon', 'image', 'order', 'parentId']
+        if categories:
+            first_cat = categories[0]
+            missing_fields = [field for field in required_fields if field not in first_cat]
+            if missing_fields:
+                log(f"❌ Missing required fields in categories: {missing_fields}")
+                return False
+            log("✅ All required fields present in categories")
             
+        log(f"✅ Sample category: {json.dumps(categories[0] if categories else {}, indent=2)}")
+        return True
+        
+    except requests.RequestException as e:
+        log(f"❌ Categories GET request failed: {e}")
+        return False
     except Exception as e:
-        return print_test_result("JWT Token Validation (Without Token)", False, f"Error: {str(e)}")
+        log(f"❌ Categories GET error: {e}")
+        return False
 
-def test_brute_force_protection():
-    """Test brute force protection after 3 failed login attempts"""
-    print("\n🔒 Testing Brute Force Protection - Making 4 failed attempts...")
+def test_products_get():
+    """Test GET /api/products - Should return products with multi-language pros/cons"""
+    log("Testing GET /api/products...")
     
     try:
-        # Make 3 failed attempts
-        for i in range(3):
-            print(f"   Attempt {i+1}/3...")
-            response = requests.post(
-                f"{BASE_URL}/admin/login",
-                json={"password": WRONG_PASSWORD},
-                timeout=10
-            )
-            time.sleep(1)  # Small delay between attempts
+        response = requests.get(f"{API_BASE}/products")
         
-        # 4th attempt should be blocked
-        print("   Attempt 4/4 (should be locked)...")
-        response = requests.post(
-            f"{BASE_URL}/admin/login",
-            json={"password": WRONG_PASSWORD},
-            timeout=10
-        )
-        
-        if response.status_code == 429:
-            data = response.json()
-            if "error" in data and "locked" in data["error"].lower():
-                return print_test_result("Brute Force Protection", True, 
-                    f"Account correctly locked: {data['error']}")
-            else:
-                return print_test_result("Brute Force Protection", False, 
-                    f"Wrong lockout message: {data}")
-        else:
-            return print_test_result("Brute Force Protection", False, 
-                f"Expected 429 (locked), got {response.status_code}: {response.text}")
+        if response.status_code != 200:
+            log(f"❌ Products GET failed with status {response.status_code}: {response.text}")
+            return False
             
+        data = response.json()
+        products = data.get('products', [])
+        total = data.get('total', 0)
+        
+        log(f"✅ Products GET successful - Received {len(products)} products, total: {total}")
+        
+        # Check for multi-language pros/cons fields
+        if products:
+            first_product = products[0]
+            multilang_fields = ['pros_en', 'cons_en', 'pros_fr', 'cons_fr']
+            
+            # Check if fields exist (they should be in the response structure)
+            has_multilang = all(field in first_product for field in multilang_fields)
+            if not has_multilang:
+                missing = [f for f in multilang_fields if f not in first_product]
+                log(f"❌ Missing multi-language pros/cons fields: {missing}")
+                return False
+                
+            log("✅ Multi-language pros/cons fields present in products")
+            log(f"✅ Sample product: {json.dumps(first_product, indent=2)}")
+        else:
+            log("ℹ️ No products found to test multi-language fields")
+            
+        return True
+        
+    except requests.RequestException as e:
+        log(f"❌ Products GET request failed: {e}")
+        return False
     except Exception as e:
-        return print_test_result("Brute Force Protection", False, f"Error: {str(e)}")
+        log(f"❌ Products GET error: {e}")
+        return False
 
-def test_rate_limiting():
-    """Test rate limiting on login endpoint"""
-    print("\n⏱️ Testing Rate Limiting - Making rapid login requests...")
+def get_admin_token():
+    """Get admin JWT token for authenticated endpoints"""
+    log("Getting admin authentication token...")
     
     try:
-        rate_limit_hit = False
+        response = requests.post(f"{API_BASE}/admin/login", json={
+            "password": "quickloot_strong_password_123!"
+        })
         
-        # Make rapid requests to trigger rate limiting
-        for i in range(8):
-            response = requests.post(
-                f"{BASE_URL}/admin/login",
-                json={"password": "test"},
-                timeout=10
-            )
+        if response.status_code != 200:
+            log(f"❌ Admin login failed with status {response.status_code}: {response.text}")
+            return None
             
-            # Check for rate limit headers
-            if "X-RateLimit-Limit" in response.headers:
-                print(f"   Request {i+1}: Rate limit headers present")
-                print(f"      X-RateLimit-Limit: {response.headers.get('X-RateLimit-Limit')}")
-                if "X-RateLimit-Remaining" in response.headers:
-                    print(f"      X-RateLimit-Remaining: {response.headers.get('X-RateLimit-Remaining')}")
+        data = response.json()
+        token = data.get('token')
+        if not token:
+            log(f"❌ No token in login response: {data}")
+            return None
             
-            # Check if rate limited
-            if response.status_code == 429:
-                rate_limit_hit = True
-                data = response.json()
-                return print_test_result("Rate Limiting", True, 
-                    f"Rate limit hit at request {i+1}: {data.get('error', 'Too many requests')}")
+        log("✅ Admin authentication successful")
+        return token
         
-        # If we didn't hit rate limit, still check for headers on successful requests
-        if not rate_limit_hit:
-            # Make one more normal request to check headers
-            response = requests.post(
-                f"{BASE_URL}/admin/login",
-                json={"password": "test"},
-                timeout=10
-            )
-            
-            if "X-RateLimit-Limit" in response.headers:
-                return print_test_result("Rate Limiting", True, 
-                    f"Rate limit headers present: Limit={response.headers.get('X-RateLimit-Limit')}")
-            else:
-                return print_test_result("Rate Limiting", False, 
-                    "Rate limit headers not found in response")
-            
+    except requests.RequestException as e:
+        log(f"❌ Admin login request failed: {e}")
+        return None
     except Exception as e:
-        return print_test_result("Rate Limiting", False, f"Error: {str(e)}")
+        log(f"❌ Admin login error: {e}")
+        return None
 
-def test_security_headers():
-    """Test for presence of security headers"""
+def test_update_product_missing_id(token):
+    """Test POST /api/update-product with missing product_id (should return 400)"""
+    log("Testing POST /api/update-product with missing product_id...")
+    
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    
     try:
-        response = requests.get(f"{BASE_URL}/stats", timeout=10)
+        # Test without product_id
+        response = requests.post(f"{API_BASE}/update-product", 
+                               json={"store_prices": []}, 
+                               headers=headers)
         
-        required_headers = {
-            'X-Content-Type-Options': 'nosniff',
-            'X-Frame-Options': 'DENY', 
-            'X-XSS-Protection': '1; mode=block'
+        if response.status_code != 400:
+            log(f"❌ Expected 400 for missing product_id, got {response.status_code}: {response.text}")
+            return False
+            
+        log("✅ Correctly returned 400 for missing product_id")
+        return True
+        
+    except requests.RequestException as e:
+        log(f"❌ Update product request failed: {e}")
+        return False
+    except Exception as e:
+        log(f"❌ Update product error: {e}")
+        return False
+
+def test_update_product_nonexistent_id(token):
+    """Test POST /api/update-product with non-existent product_id (should return 404)"""
+    log("Testing POST /api/update-product with non-existent product_id...")
+    
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    
+    try:
+        # Test with fake UUID
+        fake_uuid = str(uuid.uuid4())
+        response = requests.post(f"{API_BASE}/update-product", 
+                               json={
+                                   "product_id": fake_uuid,
+                                   "store_prices": []
+                               }, 
+                               headers=headers)
+        
+        if response.status_code != 404:
+            log(f"❌ Expected 404 for non-existent product_id, got {response.status_code}: {response.text}")
+            return False
+            
+        log("✅ Correctly returned 404 for non-existent product_id")
+        return True
+        
+    except requests.RequestException as e:
+        log(f"❌ Update product request failed: {e}")
+        return False
+    except Exception as e:
+        log(f"❌ Update product error: {e}")
+        return False
+
+def test_update_product_valid(token):
+    """Test POST /api/update-product with valid data"""
+    log("Testing POST /api/update-product with valid data...")
+    
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    
+    try:
+        # First create a test product to update
+        product_data = {
+            "name": "Test Product for Update API",
+            "description": "Test product for price update endpoint testing",
+            "category": "electronics",
+            "brand": "TestBrand",
+            "pros_en": ["Good quality", "Affordable"],
+            "cons_en": ["Limited warranty"],
+            "pros_fr": ["Bonne qualité", "Abordable"],  
+            "cons_fr": ["Garantie limitée"]
         }
         
-        missing_headers = []
-        present_headers = []
-        
-        for header, expected_value in required_headers.items():
-            actual_value = response.headers.get(header)
-            if actual_value:
-                present_headers.append(f"{header}: {actual_value}")
-                if actual_value != expected_value:
-                    missing_headers.append(f"{header} (expected: {expected_value}, got: {actual_value})")
-            else:
-                missing_headers.append(header)
-        
-        if not missing_headers:
-            return print_test_result("Security Headers", True, 
-                f"All security headers present: {', '.join(present_headers)}")
-        else:
-            return print_test_result("Security Headers", False, 
-                f"Missing/incorrect: {', '.join(missing_headers)}. Present: {', '.join(present_headers)}")
+        response = requests.post(f"{API_BASE}/products", json=product_data, headers=headers)
+        if response.status_code != 201:
+            log(f"❌ Failed to create test product: {response.status_code}: {response.text}")
+            return False
             
+        product = response.json()
+        product_id = product['id']
+        log(f"✅ Created test product with ID: {product_id}")
+        
+        # Now test the update-product endpoint
+        update_data = {
+            "product_id": product_id,
+            "store_prices": [
+                {
+                    "store_id": str(uuid.uuid4()),
+                    "store_url": "https://example.com/product/123",
+                    "price": 599.99,
+                    "currency": "CAD",
+                    "is_in_stock": True
+                },
+                {
+                    "store_id": str(uuid.uuid4()),
+                    "store_url": "https://another-store.com/item/456", 
+                    "price": 649.99,
+                    "currency": "CAD",
+                    "is_in_stock": True
+                }
+            ]
+        }
+        
+        response = requests.post(f"{API_BASE}/update-product", json=update_data, headers=headers)
+        
+        if response.status_code != 200:
+            log(f"❌ Update product failed with status {response.status_code}: {response.text}")
+            return False
+            
+        result = response.json()
+        expected_fields = ['success', 'productId', 'linksProcessed', 'results', 'bestPrice']
+        missing_fields = [field for field in expected_fields if field not in result]
+        
+        if missing_fields:
+            log(f"❌ Missing expected fields in response: {missing_fields}")
+            return False
+            
+        if not result.get('success'):
+            log(f"❌ Success field is not true: {result}")
+            return False
+            
+        if result.get('productId') != product_id:
+            log(f"❌ Product ID mismatch: expected {product_id}, got {result.get('productId')}")
+            return False
+            
+        log(f"✅ Update product successful - processed {result.get('linksProcessed')} links, best price: {result.get('bestPrice')}")
+        return True
+        
+    except requests.RequestException as e:
+        log(f"❌ Update product request failed: {e}")
+        return False
     except Exception as e:
-        return print_test_result("Security Headers", False, f"Error: {str(e)}")
+        log(f"❌ Update product error: {e}")
+        return False
 
-def test_cors_headers():
-    """Test CORS headers"""
+def test_create_product_multilang(token):
+    """Test POST /api/products - Create product with multi-language pros/cons"""
+    log("Testing POST /api/products with multi-language pros/cons...")
+    
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    
     try:
-        response = requests.options(f"{BASE_URL}/stats", timeout=10)
+        product_data = {
+            "name": "Multi-Language Test Product",
+            "description": "Test product with multi-language pros and cons",
+            "category": "electronics",
+            "brand": "TestBrand",
+            "pros_en": ["Excellent build quality", "Fast performance", "Great value"],
+            "cons_en": ["Heavy weight", "Limited color options"],
+            "pros_fr": ["Excellente qualité de construction", "Performance rapide", "Excellent rapport qualité-prix"],
+            "cons_fr": ["Poids lourd", "Options de couleur limitées"]
+        }
         
-        cors_headers = [
-            'Access-Control-Allow-Origin',
-            'Access-Control-Allow-Methods', 
-            'Access-Control-Allow-Headers'
-        ]
+        response = requests.post(f"{API_BASE}/products", json=product_data, headers=headers)
         
-        present_cors = []
-        for header in cors_headers:
-            value = response.headers.get(header)
-            if value:
-                present_cors.append(f"{header}: {value}")
-        
-        if present_cors:
-            return print_test_result("CORS Headers", True, 
-                f"CORS headers present: {', '.join(present_cors)}")
-        else:
-            return print_test_result("CORS Headers", False, 
-                "No CORS headers found")
+        if response.status_code != 201:
+            log(f"❌ Create product failed with status {response.status_code}: {response.text}")
+            return False
             
+        product = response.json()
+        
+        # Verify multi-language fields are properly saved
+        multilang_fields = ['pros_en', 'cons_en', 'pros_fr', 'cons_fr']
+        for field in multilang_fields:
+            if field not in product:
+                log(f"❌ Missing field {field} in created product")
+                return False
+            if not isinstance(product[field], list):
+                log(f"❌ Field {field} should be a list, got {type(product[field])}")
+                return False
+                
+        log(f"✅ Product created with multi-language pros/cons - ID: {product['id']}")
+        log(f"  pros_en: {product['pros_en']}")
+        log(f"  cons_en: {product['cons_en']}")
+        log(f"  pros_fr: {product['pros_fr']}")
+        log(f"  cons_fr: {product['cons_fr']}")
+        return True
+        
+    except requests.RequestException as e:
+        log(f"❌ Create product request failed: {e}")
+        return False
     except Exception as e:
-        return print_test_result("CORS Headers", False, f"Error: {str(e)}")
+        log(f"❌ Create product error: {e}")
+        return False
 
-def run_all_security_tests():
-    """Run all security tests"""
-    print("=" * 60)
-    print("🔐 QUICKLOOT.NET API SECURITY TESTING SUITE")
-    print("=" * 60)
+def test_create_category_with_image(token):
+    """Test POST /api/categories - Create category with image (base64) and order"""
+    log("Testing POST /api/categories with image and order...")
     
-    global auth_token
-    auth_token = None
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     
-    tests_passed = 0
-    total_tests = 0
-    
-    # Test 1: Admin Login with correct password
-    print("\n1️⃣ AUTHENTICATION TESTING")
-    print("-" * 30)
-    total_tests += 1
-    if test_admin_login_correct_password():
-        tests_passed += 1
-    
-    # Test 2: Admin Login with wrong password  
-    total_tests += 1
-    if test_admin_login_wrong_password():
-        tests_passed += 1
-    
-    # Test 3 & 4: JWT Token Validation
-    print("\n2️⃣ JWT TOKEN VALIDATION")
-    print("-" * 30)
-    total_tests += 1
-    if test_jwt_token_validation_with_token():
-        tests_passed += 1
+    try:
+        # Create a simple base64 image (1x1 pixel transparent PNG)
+        base64_image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
         
-    total_tests += 1
-    if test_jwt_token_validation_without_token():
-        tests_passed += 1
-    
-    # Test 5: Brute Force Protection
-    print("\n3️⃣ BRUTE FORCE PROTECTION")
-    print("-" * 30)
-    total_tests += 1
-    if test_brute_force_protection():
-        tests_passed += 1
-    
-    # Test 6: Rate Limiting
-    print("\n4️⃣ RATE LIMITING")
-    print("-" * 30) 
-    total_tests += 1
-    if test_rate_limiting():
-        tests_passed += 1
-    
-    # Test 7 & 8: Security Headers
-    print("\n5️⃣ SECURITY HEADERS")
-    print("-" * 30)
-    total_tests += 1
-    if test_security_headers():
-        tests_passed += 1
+        category_data = {
+            "name_en": "Test Category with Image",
+            "name_fr": "Catégorie de test avec image",
+            "slug": "test-category-image",
+            "icon": "🧪",
+            "image": base64_image,
+            "order": 1,
+            "parentId": None
+        }
         
-    total_tests += 1
-    if test_cors_headers():
-        tests_passed += 1
+        response = requests.post(f"{API_BASE}/categories", json=category_data, headers=headers)
+        
+        if response.status_code != 201:
+            log(f"❌ Create category failed with status {response.status_code}: {response.text}")
+            return False
+            
+        category = response.json()
+        
+        # Verify required fields
+        required_fields = ['id', 'name_en', 'name_fr', 'slug', 'icon', 'image', 'order', 'parentId']
+        missing_fields = [field for field in required_fields if field not in category]
+        
+        if missing_fields:
+            log(f"❌ Missing required fields in created category: {missing_fields}")
+            return False
+            
+        # Verify image field contains the base64 data
+        if category['image'] != base64_image:
+            log(f"❌ Image field mismatch. Expected base64 data, got: {category['image'][:50]}...")
+            return False
+            
+        # Verify order field
+        if category['order'] != 1:
+            log(f"❌ Order field mismatch. Expected 1, got: {category['order']}")
+            return False
+            
+        log(f"✅ Category created with image and order - ID: {category['id']}")
+        log(f"  Name EN: {category['name_en']}")
+        log(f"  Name FR: {category['name_fr']}")
+        log(f"  Order: {category['order']}")
+        log(f"  Image: {category['image'][:50]}...")
+        return True
+        
+    except requests.RequestException as e:
+        log(f"❌ Create category request failed: {e}")
+        return False
+    except Exception as e:
+        log(f"❌ Create category error: {e}")
+        return False
+
+def test_homepage_no_admin_panel():
+    """Test that homepage does NOT contain 'Admin Panel' text"""
+    log("Testing that homepage does NOT contain 'Admin Panel' button...")
     
-    # Final Results
-    print("\n" + "=" * 60)
-    print("📊 FINAL SECURITY TEST RESULTS")
-    print("=" * 60)
-    print(f"Tests Passed: {tests_passed}/{total_tests}")
-    print(f"Success Rate: {(tests_passed/total_tests)*100:.1f}%")
+    try:
+        response = requests.get(BASE_URL)
+        
+        if response.status_code != 200:
+            log(f"❌ Homepage request failed with status {response.status_code}")
+            return False
+            
+        html_content = response.text
+        
+        # Check for "Admin Panel" text (case insensitive)
+        if "admin panel" in html_content.lower():
+            log("❌ Homepage contains 'Admin Panel' text - this should NOT be present")
+            return False
+            
+        log("✅ Homepage correctly does NOT contain 'Admin Panel' text")
+        return True
+        
+    except requests.RequestException as e:
+        log(f"❌ Homepage request failed: {e}")
+        return False
+    except Exception as e:
+        log(f"❌ Homepage test error: {e}")
+        return False
+
+def main():
+    """Run all tests"""
+    log("Starting QuickLoot.net API Testing Suite...")
+    log(f"Backend URL: {API_BASE}")
     
-    if tests_passed == total_tests:
-        print("🎉 ALL SECURITY TESTS PASSED!")
+    results = {}
+    
+    # Test public endpoints first
+    results['categories_get'] = test_categories_get()
+    results['products_get'] = test_products_get()
+    results['homepage_no_admin'] = test_homepage_no_admin_panel()
+    
+    # Get admin token for protected endpoints
+    token = get_admin_token()
+    if not token:
+        log("❌ Cannot proceed with admin-protected endpoint tests - no token")
+        results.update({
+            'update_product_missing_id': False,
+            'update_product_nonexistent_id': False, 
+            'update_product_valid': False,
+            'create_product_multilang': False,
+            'create_category_image': False
+        })
     else:
-        print(f"⚠️  {total_tests - tests_passed} test(s) failed. Review security implementation.")
+        # Test protected endpoints
+        results['update_product_missing_id'] = test_update_product_missing_id(token)
+        results['update_product_nonexistent_id'] = test_update_product_nonexistent_id(token)
+        results['update_product_valid'] = test_update_product_valid(token)
+        results['create_product_multilang'] = test_create_product_multilang(token)
+        results['create_category_image'] = test_create_category_with_image(token)
     
-    return tests_passed == total_tests
+    # Print summary
+    log("\n" + "="*60)
+    log("TEST RESULTS SUMMARY")
+    log("="*60)
+    
+    passed = 0
+    total = len(results)
+    
+    for test_name, passed_test in results.items():
+        status = "✅ PASS" if passed_test else "❌ FAIL"
+        log(f"{test_name:30} {status}")
+        if passed_test:
+            passed += 1
+    
+    log("="*60)
+    log(f"TOTAL: {passed}/{total} tests passed ({passed/total*100:.1f}%)")
+    
+    if passed == total:
+        log("🎉 All tests PASSED!")
+        return True
+    else:
+        log("💥 Some tests FAILED!")
+        return False
 
 if __name__ == "__main__":
-    try:
-        success = run_all_security_tests()
-        sys.exit(0 if success else 1)
-    except KeyboardInterrupt:
-        print("\n⛔ Test suite interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n💥 Unexpected error: {str(e)}")
-        sys.exit(1)
+    success = main()
+    exit(0 if success else 1)
