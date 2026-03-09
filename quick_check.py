@@ -5,7 +5,7 @@ Quick Status Check
 
 import requests
 
-BASE_URL = "https://shop-compare-73.preview.emergentagent.com/api"
+BASE_URL = "https://price-compare-test.preview.emergentagent.com/api"
 ADMIN_PASSWORD = "quickloot_strong_password_123!"
 
 def quick_status_check():

@@ -95,7 +95,7 @@ const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm f
 // ============================================================
 // IMAGE UPLOAD COMPONENT
 // ============================================================
-function ImageUpload({ value, onChange, label = "Upload Logo (512x512 PNG/SVG)" }) {
+function ImageUpload({ value, onChange, label = "Upload Image (PNG/WebP)" }) {
   const [preview, setPreview] = useState(value || null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -178,11 +178,12 @@ function ImageUpload({ value, onChange, label = "Upload Logo (512x512 PNG/SVG)" 
               accept="image/png,image/svg+xml,image/jpeg,image/webp"
               onChange={handleFileSelect}
               className="hidden"
-              id="logo-upload"
+              id={`img-upload-${Math.random()}`}
             />
             <label
-              htmlFor="logo-upload"
+              htmlFor={fileInputRef.current?.id || 'img-upload'}
               className="cursor-pointer inline-flex flex-col items-center gap-2"
+              onClick={() => fileInputRef.current?.click()}
             >
               <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center">
                 {uploading ? (
@@ -191,8 +192,7 @@ function ImageUpload({ value, onChange, label = "Upload Logo (512x512 PNG/SVG)" 
                   <Upload className="w-6 h-6 text-gray-400" />
                 )}
               </div>
-              <span className="text-xs text-gray-500">Click to upload (PNG, SVG, max 2MB)</span>
-              <span className="text-xs text-gray-400">Recommended: 512x512px</span>
+              <span className="text-xs text-gray-500">Click to upload (PNG, WebP, max 2MB)</span>
             </label>
           </div>
         )}
@@ -214,14 +214,14 @@ const TABS = [
 ];
 
 // ============================================================
-// CATEGORIES TAB (with nested support)
+// CATEGORIES TAB (with nested support, order, and image upload)
 // ============================================================
 function CategoriesTab() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // null | 'add' | 'edit'
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [form, setForm] = useState({ name_en: '', name_fr: '', slug: '', icon: '📁', parentId: null });
+  const [form, setForm] = useState({ name_en: '', name_fr: '', slug: '', icon: '📁', image: '', order: 1, parentId: null });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -230,12 +230,18 @@ function CategoriesTab() {
   async function loadCategories() {
     setLoading(true);
     const res = await authFetch('/api/categories');
-    if (res.ok) setCategories(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      // Sort by order
+      data.sort((a, b) => (a.order || 99) - (b.order || 99));
+      setCategories(data);
+    }
     setLoading(false);
   }
 
   function openAdd(parentId = null) {
-    setForm({ name_en: '', name_fr: '', slug: '', icon: '📁', parentId });
+    const maxOrder = categories.length > 0 ? Math.max(...categories.map(c => c.order || 0)) + 1 : 1;
+    setForm({ name_en: '', name_fr: '', slug: '', icon: '📁', image: '', order: maxOrder, parentId });
     setSelectedCategory(null);
     setModal('add');
   }
@@ -246,6 +252,8 @@ function CategoriesTab() {
       name_fr: cat.name_fr || '',
       slug: cat.slug || '',
       icon: cat.icon || '📁',
+      image: cat.image || '',
+      order: cat.order || 1,
       parentId: cat.parentId || null,
     });
     setSelectedCategory(cat);
@@ -258,7 +266,7 @@ function CategoriesTab() {
     setMsg('');
     try {
       const slug = form.slug || form.name_en.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const payload = { ...form, slug };
+      const payload = { ...form, slug, order: parseInt(form.order) || 1 };
       
       let res;
       if (modal === 'edit' && selectedCategory) {
@@ -298,6 +306,7 @@ function CategoriesTab() {
   function buildTree(cats, parentId = null, depth = 0) {
     return cats
       .filter(c => (c.parentId || null) === parentId)
+      .sort((a, b) => (a.order || 99) - (b.order || 99))
       .map(cat => ({
         ...cat,
         depth,
@@ -313,11 +322,19 @@ function CategoriesTab() {
           className="flex items-center gap-3 py-3 px-4 bg-white border border-gray-100 rounded-xl hover:border-orange-200 transition-colors mb-2"
           style={{ marginLeft: paddingLeft }}
         >
-          <span className="text-2xl">{cat.icon}</span>
+          {/* Category Image or Icon */}
+          <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+            {cat.image && (cat.image.startsWith('data:') || cat.image.startsWith('http')) ? (
+              <img src={cat.image} alt="" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-2xl">{cat.icon || '📁'}</span>
+            )}
+          </div>
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-gray-800 text-sm flex items-center gap-2">
               {cat.depth > 0 && <ChevronRight className="w-3 h-3 text-gray-400" />}
               {cat.name_en || cat.name}
+              <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">#{cat.order || '?'}</span>
             </div>
             <div className="text-xs text-gray-400">
               {cat.name_fr && <span className="mr-2">🇫🇷 {cat.name_fr}</span>}
@@ -379,14 +396,27 @@ function CategoriesTab() {
           <FormField label="Name (French - Quebec)">
             <input className={inputCls} value={form.name_fr} onChange={e => setForm({...form, name_fr: e.target.value})} placeholder="e.g. Électronique" />
           </FormField>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <FormField label="Slug">
               <input className={inputCls} value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} placeholder="auto-generated" />
             </FormField>
-            <FormField label="Icon (Emoji)">
+            <FormField label="Order">
+              <input type="number" className={inputCls} value={form.order} onChange={e => setForm({...form, order: e.target.value})} placeholder="1" min="1" />
+            </FormField>
+            <FormField label="Emoji Icon (fallback)">
               <input className={inputCls} value={form.icon} onChange={e => setForm({...form, icon: e.target.value})} />
             </FormField>
           </div>
+          
+          {/* Image Upload */}
+          <div className="mb-4">
+            <ImageUpload 
+              value={form.image} 
+              onChange={(val) => setForm({...form, image: val})} 
+              label="Category Icon Image (PNG/WebP - overrides emoji)"
+            />
+          </div>
+
           <FormField label="Parent Category">
             <select 
               className={inputCls} 
@@ -396,6 +426,7 @@ function CategoriesTab() {
               <option value="">— Root Category (No Parent) —</option>
               {categories
                 .filter(c => c.id !== selectedCategory?.id) // Can't be parent of itself
+                .sort((a, b) => (a.order || 99) - (b.order || 99))
                 .map(cat => (
                   <option key={cat.id} value={cat.id}>
                     {'  '.repeat(buildTree(categories).find(t => t.id === cat.id)?.depth || 0)}
@@ -419,7 +450,7 @@ function CategoriesTab() {
 }
 
 // ============================================================
-// PRODUCTS TAB
+// PRODUCTS TAB (with multi-language Pros/Cons)
 // ============================================================
 function ProductsTab() {
   const [products, setProducts] = useState([]);
@@ -430,7 +461,7 @@ function ProductsTab() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [form, setForm] = useState({ 
     name: '', brand: '', description: '', category: '', image: '', featured: false, tags: '',
-    pros: '', cons: '', specs: ''
+    pros_en: '', cons_en: '', pros_fr: '', cons_fr: '', specs: ''
   });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -458,13 +489,17 @@ function ProductsTab() {
 
   async function loadCategories() {
     const res = await authFetch('/api/categories');
-    if (res.ok) setCategories(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      data.sort((a, b) => (a.order || 99) - (b.order || 99));
+      setCategories(data);
+    }
   }
 
   function openAdd() {
     setForm({ 
       name: '', brand: '', description: '', category: '', image: '', featured: false, tags: '',
-      pros: '', cons: '', specs: ''
+      pros_en: '', cons_en: '', pros_fr: '', cons_fr: '', specs: ''
     });
     setSelectedProduct(null);
     setModal('add');
@@ -479,8 +514,10 @@ function ProductsTab() {
       image: product.image || '',
       featured: product.featured || false,
       tags: (product.tags || []).join(', '),
-      pros: (product.pros || []).join('\n'),
-      cons: (product.cons || []).join('\n'),
+      pros_en: (product.pros_en || product.pros || []).join('\n'),
+      cons_en: (product.cons_en || product.cons || []).join('\n'),
+      pros_fr: (product.pros_fr || []).join('\n'),
+      cons_fr: (product.cons_fr || []).join('\n'),
       specs: product.specs ? Object.entries(product.specs).map(([k,v]) => `${k}: ${v}`).join('\n') : '',
     });
     setSelectedProduct(product);
@@ -492,10 +529,12 @@ function ProductsTab() {
     setSaving(true);
     setMsg('');
     try {
-      // Parse pros (line separated)
-      const pros = form.pros ? form.pros.split('\n').map(l => l.trim()).filter(Boolean) : [];
-      // Parse cons (line separated)
-      const cons = form.cons ? form.cons.split('\n').map(l => l.trim()).filter(Boolean) : [];
+      // Parse multi-language pros/cons
+      const pros_en = form.pros_en ? form.pros_en.split('\n').map(l => l.trim()).filter(Boolean) : [];
+      const cons_en = form.cons_en ? form.cons_en.split('\n').map(l => l.trim()).filter(Boolean) : [];
+      const pros_fr = form.pros_fr ? form.pros_fr.split('\n').map(l => l.trim()).filter(Boolean) : [];
+      const cons_fr = form.cons_fr ? form.cons_fr.split('\n').map(l => l.trim()).filter(Boolean) : [];
+      
       // Parse specs (key: value format, line separated)
       const specs = {};
       if (form.specs) {
@@ -510,20 +549,22 @@ function ProductsTab() {
       }
 
       const payload = {
-        ...form,
+        name: form.name,
+        brand: form.brand,
+        description: form.description,
+        category: form.category,
+        image: form.image,
+        featured: form.featured,
         tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-        pros,
-        cons,
+        pros_en,
+        cons_en,
+        pros_fr,
+        cons_fr,
+        // Legacy fields for backward compatibility
+        pros: pros_en,
+        cons: cons_en,
         specs: Object.keys(specs).length > 0 ? specs : null,
       };
-
-      // Remove string versions
-      delete payload.pros;
-      delete payload.cons;
-      delete payload.specs;
-      payload.pros = pros;
-      payload.cons = cons;
-      payload.specs = Object.keys(specs).length > 0 ? specs : null;
 
       let res;
       if (modal === 'edit' && selectedProduct) {
@@ -561,10 +602,12 @@ function ProductsTab() {
   // Build category tree for dropdown
   function buildCategoryOptions(cats, parentId = null, depth = 0) {
     const result = [];
-    cats.filter(c => (c.parentId || null) === parentId).forEach(cat => {
-      result.push({ ...cat, depth });
-      result.push(...buildCategoryOptions(cats, cat.id, depth + 1));
-    });
+    cats.filter(c => (c.parentId || null) === parentId)
+      .sort((a, b) => (a.order || 99) - (b.order || 99))
+      .forEach(cat => {
+        result.push({ ...cat, depth });
+        result.push(...buildCategoryOptions(cats, cat.id, depth + 1));
+      });
     return result;
   }
   const categoryOptions = buildCategoryOptions(categories);
@@ -614,7 +657,7 @@ function ProductsTab() {
       )}
 
       {(modal === 'add' || modal === 'edit') && (
-        <Modal title={modal === 'edit' ? 'Edit Product' : 'Add Product'} onClose={() => setModal(null)} size="lg">
+        <Modal title={modal === 'edit' ? 'Edit Product' : 'Add Product'} onClose={() => setModal(null)} size="xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Product Name" required>
               <input className={inputCls} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. PlayStation 5 Digital Edition" />
@@ -640,36 +683,65 @@ function ProductsTab() {
             <textarea className={inputCls} rows={2} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Product description..." />
           </FormField>
           
-          {/* Pros & Cons */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label="✅ Pros (one per line)">
-              <textarea 
-                className={inputCls} 
-                rows={4} 
-                value={form.pros} 
-                onChange={e => setForm({...form, pros: e.target.value})} 
-                placeholder="Lightning-fast SSD&#10;Haptic feedback&#10;3D Audio support&#10;Backward compatible"
-              />
-            </FormField>
-            <FormField label="❌ Cons (one per line)">
-              <textarea 
-                className={inputCls} 
-                rows={4} 
-                value={form.cons} 
-                onChange={e => setForm({...form, cons: e.target.value})} 
-                placeholder="No disc drive&#10;Limited storage&#10;Requires stable internet"
-              />
-            </FormField>
+          {/* Multi-language Pros & Cons */}
+          <div className="bg-gray-50 rounded-xl p-4 mb-4">
+            <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              ✅❌ Pros & Cons (Multi-language)
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h5 className="text-sm font-medium text-gray-600 mb-2">🇬🇧 English</h5>
+                <FormField label="✅ Pros (EN) - one per line">
+                  <textarea 
+                    className={inputCls} 
+                    rows={3} 
+                    value={form.pros_en} 
+                    onChange={e => setForm({...form, pros_en: e.target.value})} 
+                    placeholder="Lightning-fast SSD&#10;Haptic feedback&#10;3D Audio support"
+                  />
+                </FormField>
+                <FormField label="❌ Cons (EN) - one per line">
+                  <textarea 
+                    className={inputCls} 
+                    rows={3} 
+                    value={form.cons_en} 
+                    onChange={e => setForm({...form, cons_en: e.target.value})} 
+                    placeholder="No disc drive&#10;Limited storage"
+                  />
+                </FormField>
+              </div>
+              <div>
+                <h5 className="text-sm font-medium text-gray-600 mb-2">🇫🇷 Français (Quebec)</h5>
+                <FormField label="✅ Pros (FR) - un par ligne">
+                  <textarea 
+                    className={inputCls} 
+                    rows={3} 
+                    value={form.pros_fr} 
+                    onChange={e => setForm({...form, pros_fr: e.target.value})} 
+                    placeholder="SSD ultra-rapide&#10;Retour haptique&#10;Audio 3D"
+                  />
+                </FormField>
+                <FormField label="❌ Cons (FR) - un par ligne">
+                  <textarea 
+                    className={inputCls} 
+                    rows={3} 
+                    value={form.cons_fr} 
+                    onChange={e => setForm({...form, cons_fr: e.target.value})} 
+                    placeholder="Pas de lecteur disque&#10;Stockage limité"
+                  />
+                </FormField>
+              </div>
+            </div>
           </div>
 
           {/* Technical Specifications */}
           <FormField label="📋 Technical Specs (key: value per line)">
             <textarea 
               className={inputCls} 
-              rows={5} 
+              rows={4} 
               value={form.specs} 
               onChange={e => setForm({...form, specs: e.target.value})} 
-              placeholder="Storage: 825GB SSD&#10;Resolution: 4K UHD&#10;Frame Rate: Up to 120fps&#10;Audio: Tempest 3D&#10;Connectivity: Wi-Fi 6, Bluetooth 5.1"
+              placeholder="Storage: 825GB SSD&#10;Resolution: 4K UHD&#10;Frame Rate: Up to 120fps"
             />
           </FormField>
 
@@ -776,7 +848,7 @@ function PriceLinksModal({ product, stores, onClose }) {
             <select className={inputCls} value={form.storeId} onChange={e => setForm({...form, storeId: e.target.value})}>
               <option value="">Select store...</option>
               {stores.map(s => (
-                <option key={s.id} value={s.id}>{s.logo ? '' : ''} {s.name}</option>
+                <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
           </div>
@@ -872,7 +944,7 @@ function PriceLinksModal({ product, stores, onClose }) {
 function StoresTab() {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | 'add' | 'edit'
+  const [modal, setModal] = useState(null);
   const [selectedStore, setSelectedStore] = useState(null);
   const [form, setForm] = useState({ name: '', domain: '', logo: '', color: '#666666', country: 'Canada', scrapingConfig: { price: '', title: '' } });
   const [saving, setSaving] = useState(false);
@@ -1012,7 +1084,7 @@ function StoresTab() {
             <ImageUpload 
               value={form.logo} 
               onChange={(val) => setForm({...form, logo: val})} 
-              label="Store Logo (512x512 PNG/SVG recommended)"
+              label="Store Logo (512x512 PNG/WebP recommended)"
             />
           </div>
 
@@ -1231,12 +1303,10 @@ export default function AdminPage() {
     
     const token = getAdminToken();
     if (!token || !isTokenValid(token)) {
-      // Redirect to login using window.location for reliability
       window.location.href = '/admin/login';
       return;
     }
     
-    // Ensure cookie is set for middleware with SameSite=Lax
     document.cookie = `ql_admin_token=${token}; path=/; max-age=${24*60*60}; SameSite=Lax`;
     setAuthenticated(true);
     setChecking(false);
@@ -1245,7 +1315,6 @@ export default function AdminPage() {
   function handleLogout() {
     localStorage.removeItem('ql_admin_token');
     document.cookie = 'ql_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    // Use window.location for reliable redirect
     window.location.href = '/admin/login';
   }
 
@@ -1265,7 +1334,6 @@ export default function AdminPage() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {/* Back to Homepage */}
             <Link 
               href="/" 
               className="flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors group"

@@ -5,7 +5,7 @@ Quick Header Test
 
 import requests
 
-BASE_URL = "https://shop-compare-73.preview.emergentagent.com/api"
+BASE_URL = "https://price-compare-test.preview.emergentagent.com/api"
 
 def test_headers():
     """Test security headers"""

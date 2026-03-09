@@ -229,9 +229,18 @@ function PriceHistoryChart({ history, currency, lang, t }) {
 }
 
 // ============================================================
-// PROS & CONS COMPONENT
+// PROS & CONS COMPONENT (Multi-language support)
 // ============================================================
-function ProsConsSection({ pros, cons, t }) {
+function ProsConsSection({ product, lang, t }) {
+  // Get pros/cons based on language
+  const pros = lang === 'fr' 
+    ? (product.pros_fr?.length > 0 ? product.pros_fr : product.pros_en || product.pros || [])
+    : (product.pros_en || product.pros || []);
+  
+  const cons = lang === 'fr'
+    ? (product.cons_fr?.length > 0 ? product.cons_fr : product.cons_en || product.cons || [])
+    : (product.cons_en || product.cons || []);
+
   if ((!pros || pros.length === 0) && (!cons || cons.length === 0)) {
     return null;
   }
@@ -508,7 +517,7 @@ export default function ProductPage({ params }) {
             </div>
 
             {/* Pros & Cons */}
-            <ProsConsSection pros={product.pros} cons={product.cons} t={t} />
+            <ProsConsSection product={product} lang={lang} t={t} />
 
             {/* Technical Specifications */}
             <SpecsTable specs={product.specs} t={t} />

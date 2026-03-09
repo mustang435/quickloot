@@ -364,6 +364,7 @@ export async function POST(request, { params }) {
         name_fr: body.name_fr || body.fr || '',
         slug: (body.slug || '').toLowerCase().replace(/[^a-z0-9-]/g, '-'),
         icon: body.icon || '📦',
+        image: body.image || '', // Category image (base64 or URL)
         order: parseInt(body.order) || 99,
         parentId: body.parentId || null,
         createdAt: new Date().toISOString(),
@@ -402,6 +403,15 @@ export async function POST(request, { params }) {
         image: (body.image || '').substring(0, 500),
         tags: Array.isArray(body.tags) ? body.tags.slice(0, 20) : [],
         featured: !!body.featured,
+        // Multi-language Pros & Cons
+        pros_en: Array.isArray(body.pros_en) ? body.pros_en.slice(0, 20) : (Array.isArray(body.pros) ? body.pros.slice(0, 20) : []),
+        cons_en: Array.isArray(body.cons_en) ? body.cons_en.slice(0, 20) : (Array.isArray(body.cons) ? body.cons.slice(0, 20) : []),
+        pros_fr: Array.isArray(body.pros_fr) ? body.pros_fr.slice(0, 20) : [],
+        cons_fr: Array.isArray(body.cons_fr) ? body.cons_fr.slice(0, 20) : [],
+        // Legacy fields for backward compatibility
+        pros: Array.isArray(body.pros_en) ? body.pros_en.slice(0, 20) : (Array.isArray(body.pros) ? body.pros.slice(0, 20) : []),
+        cons: Array.isArray(body.cons_en) ? body.cons_en.slice(0, 20) : (Array.isArray(body.cons) ? body.cons.slice(0, 20) : []),
+        specs: body.specs || null,
         bestPrice: body.bestPrice ? parseFloat(body.bestPrice) : null,
         bestPriceUpdated: body.bestPrice ? new Date().toISOString() : null,
         createdAt: new Date().toISOString(),
@@ -514,6 +524,141 @@ export async function POST(request, { params }) {
         );
       }
       return NextResponse.json({ message: 'Seeded successfully' }, { headers: securityHeaders() });
+    }
+
+    // ============================================================
+    // POST /api/update-product - Python Scraper Integration Endpoint
+    // Allows external Python scraper to update product prices
+    // Expected JSON structure:
+    // {
+    //   "product_id": "uuid",
+    //   "store_prices": [
+    //     {
+    //       "store_id": "uuid",
+    //       "store_url": "https://...",
+    //       "price": 599.99,
+    //       "currency": "CAD",
+    //       "is_in_stock": true,
+    //       "last_checked": "2025-03-09T12:00:00Z"
+    //     }
+    //   ]
+    // }
+    // ============================================================
+    if (path[0] === 'update-product') {
+      // Validate required fields
+      if (!body.product_id) {
+        return safeError('product_id is required', 400);
+      }
+      
+      const productId = body.product_id;
+      const storePrices = body.store_prices || [];
+      
+      // Check if product exists
+      const product = await db.collection('products').findOne({ id: productId });
+      if (!product) {
+        return safeError('Product not found', 404);
+      }
+      
+      const results = [];
+      let bestPrice = null;
+      
+      for (const storeData of storePrices) {
+        const { store_id, store_url, price, currency = 'CAD', is_in_stock = true, last_checked } = storeData;
+        
+        if (!store_url || price === undefined) continue;
+        
+        // Find or create price link
+        let priceLink = await db.collection('priceLinks').findOne({
+          productId,
+          $or: [
+            { storeId: store_id },
+            { url: store_url }
+          ]
+        });
+        
+        const priceValue = parseFloat(price);
+        const now = last_checked || new Date().toISOString();
+        
+        if (priceLink) {
+          // Update existing link
+          const updateData = {
+            currentPrice: priceValue,
+            currency,
+            inStock: is_in_stock,
+            lastScrapedAt: now,
+            lastUpdated: now,
+            scrapeStatus: 'success',
+            scrapeError: null,
+          };
+          
+          await db.collection('priceLinks').updateOne(
+            { id: priceLink.id },
+            { 
+              $set: updateData,
+              $push: { 
+                priceHistory: { 
+                  $each: [{ price: priceValue, currency, date: now, inStock: is_in_stock }], 
+                  $slice: -90 
+                } 
+              }
+            }
+          );
+          
+          results.push({ action: 'updated', linkId: priceLink.id, price: priceValue });
+        } else {
+          // Create new link
+          const newLink = {
+            id: uuidv4(),
+            productId,
+            storeId: store_id || null,
+            storeName: storeData.store_name || '',
+            url: store_url,
+            affiliateUrl: storeData.affiliate_url || store_url,
+            currentPrice: priceValue,
+            currency,
+            inStock: is_in_stock,
+            priceHistory: [{ price: priceValue, currency, date: now, inStock: is_in_stock }],
+            active: true,
+            lastUpdated: now,
+            lastScrapedAt: now,
+            scrapeStatus: 'success',
+            scrapeError: null,
+            createdAt: now,
+          };
+          
+          await db.collection('priceLinks').insertOne(newLink);
+          results.push({ action: 'created', linkId: newLink.id, price: priceValue });
+        }
+        
+        // Track best price
+        if (is_in_stock && priceValue > 0) {
+          if (bestPrice === null || priceValue < bestPrice) {
+            bestPrice = priceValue;
+          }
+        }
+      }
+      
+      // Update product best price if we found one
+      if (bestPrice !== null) {
+        await db.collection('products').updateOne(
+          { id: productId },
+          { 
+            $set: { 
+              bestPrice, 
+              bestPriceUpdated: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            } 
+          }
+        );
+      }
+      
+      return NextResponse.json({
+        success: true,
+        productId,
+        linksProcessed: results.length,
+        results,
+        bestPrice
+      }, { headers: securityHeaders() });
     }
 
     return safeError('Not found', 404);

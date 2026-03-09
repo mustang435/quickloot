@@ -7,7 +7,7 @@ import requests
 import time
 import sys
 
-BASE_URL = "https://shop-compare-73.preview.emergentagent.com/api"
+BASE_URL = "https://price-compare-test.preview.emergentagent.com/api"
 WRONG_PASSWORD = "wrong_password_for_brute_force_test"
 
 def test_brute_force_isolated():
