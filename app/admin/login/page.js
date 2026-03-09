@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Zap, Lock, Eye, EyeOff, Shield, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import { Zap, Lock, Eye, EyeOff, Shield, AlertTriangle, CheckCircle, RefreshCw, Home, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -19,18 +20,20 @@ export default function AdminLogin() {
     // Check if already logged in
     const token = localStorage.getItem('ql_admin_token');
     if (token) {
-      // Quick verify client-side
       try {
         const parts = token.split('.');
         if (parts.length === 3) {
           const payload = JSON.parse(atob(parts[1]));
           if (payload.exp && payload.exp * 1000 > Date.now() && payload.role === 'admin') {
+            // Set cookie for middleware
+            document.cookie = `ql_admin_token=${token}; path=/; max-age=${24*60*60}; SameSite=Strict`;
             router.push('/admin');
             return;
           }
         }
       } catch (e) {}
       localStorage.removeItem('ql_admin_token');
+      document.cookie = 'ql_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
   }, [router]);
 
@@ -54,6 +57,8 @@ export default function AdminLogin() {
       if (res.ok && data.token) {
         setSuccess('Login successful! Redirecting...');
         localStorage.setItem('ql_admin_token', data.token);
+        // Set cookie for middleware
+        document.cookie = `ql_admin_token=${data.token}; path=/; max-age=${24*60*60}; SameSite=Strict`;
         setTimeout(() => router.push('/admin'), 1000);
       } else {
         setAttempts(prev => prev + 1);
@@ -78,6 +83,16 @@ export default function AdminLogin() {
       </div>
 
       <div className="relative w-full max-w-md">
+        {/* Back to Home Button */}
+        <Link 
+          href="/" 
+          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <Home className="w-4 h-4" />
+          <span className="text-sm">Back to Homepage</span>
+        </Link>
+
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-3">

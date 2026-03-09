@@ -240,19 +240,17 @@ export async function GET(request, { params }) {
     if (path[0] === 'scrape' && path[1] === 'status') {
       if (!checkAdminAuth(request)) return safeError('Unauthorized', 401);
 
-      const recentLinks = await db.collection('priceLinks').find({ active: true }).sort({ lastScrapedAt: -1 }).limit(20).toArray();
-      const storeIds = [...new Set(recentLinks.map(l => l.storeId).filter(Boolean))];
-      const stores = await db.collection('stores').find({ id: { $in: storeIds } }).toArray();
-      const storesMap = {};
-      stores.forEach(s => storesMap[s.id] = s);
-
-      const total = await db.collection('priceLinks').countDocuments({ active: true });
-      const success = await db.collection('priceLinks').countDocuments({ active: true, scrapeStatus: 'success' });
-      const failed = await db.collection('priceLinks').countDocuments({ active: true, scrapeStatus: 'failed' });
+      const totalLinks = await db.collection('priceLinks').countDocuments({ active: true });
+      const successLinks = await db.collection('priceLinks').countDocuments({ active: true, scrapeStatus: 'success' });
+      const failedLinks = await db.collection('priceLinks').countDocuments({ active: true, scrapeStatus: { $in: ['failed', 'pending', null] } });
 
       return NextResponse.json({
-        cronRunning, lastCronRun, cronInitialized, total, success, failed,
-        recentLinks: recentLinks.map(l => ({ ...l, store: storesMap[l.storeId] || null })),
+        cronRunning, 
+        lastCronRun, 
+        cronInitialized, 
+        totalLinks,
+        successLinks,
+        failedLinks,
       }, { headers: securityHeaders() });
     }
 

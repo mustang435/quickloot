@@ -114,10 +114,6 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery }) 
             <span className="hidden sm:block">{t('searchBtn')}</span>
           </button>
         </form>
-
-        <Link href="/admin" className="hidden lg:flex items-center gap-1.5 text-gray-500 hover:text-orange-500 text-xs transition-colors flex-shrink-0">
-          <Star className="w-4 h-4" /> Admin
-        </Link>
       </div>
 
       {/* Category bar */}

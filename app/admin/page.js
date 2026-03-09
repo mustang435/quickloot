@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, RefreshCw, CheckCircle, XCircle, Clock, ExternalLink, ArrowLeft, Zap, Save, X, AlertCircle, LogOut, Shield } from 'lucide-react';
-import { CATEGORIES, DEFAULT_STORES } from '@/lib/translations';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, Edit2, RefreshCw, CheckCircle, XCircle, Clock, ExternalLink, ArrowLeft, Zap, Save, X, AlertCircle, LogOut, Shield, Home, Upload, Image as ImageIcon, ChevronRight, FolderTree } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 // ============================================================
 // Auth utilities (client-side)
@@ -58,11 +58,17 @@ function Badge({ status }) {
   );
 }
 
-function Modal({ title, onClose, children }) {
+function Modal({ title, onClose, children, size = 'md' }) {
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-lg',
+    lg: 'max-w-2xl',
+    xl: 'max-w-4xl',
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b">
+      <div className={`bg-white rounded-2xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-y-auto`}>
+        <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white z-10">
           <h3 className="font-bold text-gray-800 text-lg">{title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-5 h-5" />
@@ -88,14 +94,330 @@ function FormField({ label, required, children }) {
 const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-gray-50";
 
 // ============================================================
+// IMAGE UPLOAD COMPONENT
+// ============================================================
+function ImageUpload({ value, onChange, label = "Upload Logo (512x512 PNG/SVG)" }) {
+  const [preview, setPreview] = useState(value || null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    setPreview(value || null);
+  }, [value]);
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/svg+xml', 'image/jpeg', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setError('Please upload a PNG, SVG, JPEG, or WebP image');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Image size must be less than 2MB');
+      return;
+    }
+
+    setError('');
+    setUploading(true);
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result;
+        setPreview(base64);
+        onChange(base64);
+        setUploading(false);
+      };
+      reader.onerror = () => {
+        setError('Failed to read file');
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError('Upload failed');
+      setUploading(false);
+    }
+  };
+
+  const handleRemove = () => {
+    setPreview(null);
+    onChange('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-orange-300 transition-colors">
+        {preview ? (
+          <div className="relative inline-block">
+            <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+              <img src={preview} alt="Preview" className="w-full h-full object-contain" />
+            </div>
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/png,image/svg+xml,image/jpeg,image/webp"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="logo-upload"
+            />
+            <label
+              htmlFor="logo-upload"
+              className="cursor-pointer inline-flex flex-col items-center gap-2"
+            >
+              <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center">
+                {uploading ? (
+                  <RefreshCw className="w-6 h-6 text-gray-400 animate-spin" />
+                ) : (
+                  <Upload className="w-6 h-6 text-gray-400" />
+                )}
+              </div>
+              <span className="text-xs text-gray-500">Click to upload (PNG, SVG, max 2MB)</span>
+              <span className="text-xs text-gray-400">Recommended: 512x512px</span>
+            </label>
+          </div>
+        )}
+      </div>
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+// ============================================================
 // TABS
 // ============================================================
 const TABS = [
   { id: 'products', label: 'Products', icon: '📦' },
+  { id: 'categories', label: 'Categories', icon: '📁' },
   { id: 'price-links', label: 'Price Links', icon: '🔗' },
   { id: 'stores', label: 'Stores', icon: '🏪' },
   { id: 'scraping', label: 'Scraping', icon: '🤖' },
 ];
+
+// ============================================================
+// CATEGORIES TAB (with nested support)
+// ============================================================
+function CategoriesTab() {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null); // null | 'add' | 'edit'
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [form, setForm] = useState({ name_en: '', name_fr: '', slug: '', icon: '📁', parentId: null });
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => { loadCategories(); }, []);
+
+  async function loadCategories() {
+    setLoading(true);
+    const res = await authFetch('/api/categories');
+    if (res.ok) setCategories(await res.json());
+    setLoading(false);
+  }
+
+  function openAdd(parentId = null) {
+    setForm({ name_en: '', name_fr: '', slug: '', icon: '📁', parentId });
+    setSelectedCategory(null);
+    setModal('add');
+  }
+
+  function openEdit(cat) {
+    setForm({
+      name_en: cat.name_en || cat.name || '',
+      name_fr: cat.name_fr || '',
+      slug: cat.slug || '',
+      icon: cat.icon || '📁',
+      parentId: cat.parentId || null,
+    });
+    setSelectedCategory(cat);
+    setModal('edit');
+  }
+
+  async function saveCategory() {
+    if (!form.name_en.trim()) return;
+    setSaving(true);
+    setMsg('');
+    try {
+      const slug = form.slug || form.name_en.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const payload = { ...form, slug };
+      
+      let res;
+      if (modal === 'edit' && selectedCategory) {
+        res = await authFetch(`/api/categories/${selectedCategory.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await authFetch('/api/categories', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      }
+      
+      if (res.ok) {
+        setMsg('Saved!');
+        setModal(null);
+        loadCategories();
+      } else {
+        const err = await res.json();
+        setMsg(`Error: ${err.error}`);
+      }
+    } catch (e) {
+      setMsg(`Error: ${e.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteCategory(id) {
+    if (!confirm('Delete this category and all subcategories?')) return;
+    await authFetch(`/api/categories/${id}`, { method: 'DELETE' });
+    loadCategories();
+  }
+
+  // Build category tree
+  function buildTree(cats, parentId = null, depth = 0) {
+    return cats
+      .filter(c => (c.parentId || null) === parentId)
+      .map(cat => ({
+        ...cat,
+        depth,
+        children: buildTree(cats, cat.id, depth + 1),
+      }));
+  }
+
+  function renderCategory(cat, index) {
+    const paddingLeft = cat.depth * 24;
+    return (
+      <div key={cat.id}>
+        <div 
+          className="flex items-center gap-3 py-3 px-4 bg-white border border-gray-100 rounded-xl hover:border-orange-200 transition-colors mb-2"
+          style={{ marginLeft: paddingLeft }}
+        >
+          <span className="text-2xl">{cat.icon}</span>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              {cat.depth > 0 && <ChevronRight className="w-3 h-3 text-gray-400" />}
+              {cat.name_en || cat.name}
+            </div>
+            <div className="text-xs text-gray-400">
+              {cat.name_fr && <span className="mr-2">🇫🇷 {cat.name_fr}</span>}
+              <span className="text-gray-300">/{cat.slug}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openAdd(cat.id)}
+              className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded-lg transition-colors"
+            >
+              + Sub
+            </button>
+            <button onClick={() => openEdit(cat)} className="text-gray-400 hover:text-orange-500 transition-colors">
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button onClick={() => deleteCategory(cat.id)} className="text-gray-300 hover:text-red-400 transition-colors">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        {cat.children?.map((child, i) => renderCategory(child, i))}
+      </div>
+    );
+  }
+
+  const tree = buildTree(categories);
+  const rootCategories = categories.filter(c => !c.parentId);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <FolderTree className="w-5 h-5 text-orange-500" />
+          Categories ({categories.length})
+        </h2>
+        <button onClick={() => openAdd(null)} className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+          <Plus className="w-4 h-4" /> Add Category
+        </button>
+      </div>
+
+      {loading ? <div className="text-center py-10 text-gray-400">Loading...</div> : (
+        <div>
+          {tree.length === 0 ? (
+            <div className="text-center py-10 text-gray-400">
+              No categories yet. Add one to get started!
+            </div>
+          ) : (
+            tree.map((cat, i) => renderCategory(cat, i))
+          )}
+        </div>
+      )}
+
+      {modal && (
+        <Modal title={modal === 'edit' ? 'Edit Category' : 'Add Category'} onClose={() => setModal(null)}>
+          <FormField label="Name (English)" required>
+            <input className={inputCls} value={form.name_en} onChange={e => setForm({...form, name_en: e.target.value})} placeholder="e.g. Electronics" />
+          </FormField>
+          <FormField label="Name (French - Quebec)">
+            <input className={inputCls} value={form.name_fr} onChange={e => setForm({...form, name_fr: e.target.value})} placeholder="e.g. Électronique" />
+          </FormField>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label="Slug">
+              <input className={inputCls} value={form.slug} onChange={e => setForm({...form, slug: e.target.value})} placeholder="auto-generated" />
+            </FormField>
+            <FormField label="Icon (Emoji)">
+              <input className={inputCls} value={form.icon} onChange={e => setForm({...form, icon: e.target.value})} />
+            </FormField>
+          </div>
+          <FormField label="Parent Category">
+            <select 
+              className={inputCls} 
+              value={form.parentId || ''} 
+              onChange={e => setForm({...form, parentId: e.target.value || null})}
+            >
+              <option value="">— Root Category (No Parent) —</option>
+              {categories
+                .filter(c => c.id !== selectedCategory?.id) // Can't be parent of itself
+                .map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {'  '.repeat(buildTree(categories).find(t => t.id === cat.id)?.depth || 0)}
+                    {cat.icon} {cat.name_en || cat.name}
+                  </option>
+                ))
+              }
+            </select>
+          </FormField>
+          {msg && <div className={`text-sm mb-3 ${msg.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>{msg}</div>}
+          <div className="flex gap-2">
+            <button onClick={saveCategory} disabled={saving} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-semibold text-sm">
+              {saving ? 'Saving...' : 'Save Category'}
+            </button>
+            <button onClick={() => setModal(null)} className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600">Cancel</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
 
 // ============================================================
 // PRODUCTS TAB
@@ -103,14 +425,19 @@ const TABS = [
 function ProductsTab() {
   const [products, setProducts] = useState([]);
   const [stores, setStores] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null); // null | 'add' | 'edit' | 'links'
+  const [modal, setModal] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [form, setForm] = useState({ name: '', brand: '', description: '', category: 'electronics', image: '', featured: false, tags: '' });
+  const [form, setForm] = useState({ name: '', brand: '', description: '', category: '', image: '', featured: false, tags: '' });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
-  useEffect(() => { loadProducts(); loadStores(); }, []);
+  useEffect(() => { 
+    loadProducts(); 
+    loadStores(); 
+    loadCategories();
+  }, []);
 
   async function loadProducts() {
     setLoading(true);
@@ -127,8 +454,13 @@ function ProductsTab() {
     if (res.ok) setStores(await res.json());
   }
 
+  async function loadCategories() {
+    const res = await authFetch('/api/categories');
+    if (res.ok) setCategories(await res.json());
+  }
+
   function openAdd() {
-    setForm({ name: '', brand: '', description: '', category: 'electronics', image: '', featured: false, tags: '' });
+    setForm({ name: '', brand: '', description: '', category: '', image: '', featured: false, tags: '' });
     setSelectedProduct(null);
     setModal('add');
   }
@@ -138,7 +470,7 @@ function ProductsTab() {
       name: product.name || '',
       brand: product.brand || '',
       description: product.description || '',
-      category: product.category || 'electronics',
+      category: product.category || '',
       image: product.image || '',
       featured: product.featured || false,
       tags: (product.tags || []).join(', '),
@@ -160,13 +492,11 @@ function ProductsTab() {
       if (modal === 'edit' && selectedProduct) {
         res = await authFetch(`/api/products/${selectedProduct.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
         res = await authFetch('/api/products', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       }
@@ -191,6 +521,17 @@ function ProductsTab() {
     loadProducts();
   }
 
+  // Build category tree for dropdown
+  function buildCategoryOptions(cats, parentId = null, depth = 0) {
+    const result = [];
+    cats.filter(c => (c.parentId || null) === parentId).forEach(cat => {
+      result.push({ ...cat, depth });
+      result.push(...buildCategoryOptions(cats, cat.id, depth + 1));
+    });
+    return result;
+  }
+  const categoryOptions = buildCategoryOptions(categories);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
@@ -200,90 +541,80 @@ function ProductsTab() {
         </button>
       </div>
 
-      {loading && <div className="text-center py-10 text-gray-400">Loading...</div>}
-
-      <div className="space-y-2">
-        {products.map(product => (
-          <div key={product.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4 hover:shadow-sm transition-shadow">
-            <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center flex-shrink-0 text-2xl overflow-hidden">
-              {product.image ? (
-                <img src={product.image} alt="" className="w-full h-full object-contain" onError={(e) => e.target.style.display='none'} />
-              ) : (
-                CATEGORIES.find(c => c.slug === product.category)?.icon || '📦'
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-gray-800 text-sm truncate">{product.name}</div>
-              <div className="flex items-center gap-2 mt-1">
-                {product.brand && <span className="text-xs text-orange-500">{product.brand}</span>}
-                <span className="text-xs text-gray-400">{CATEGORIES.find(c => c.slug === product.category)?.en || product.category}</span>
-                {product.featured && <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">⭐ Featured</span>}
+      {loading ? <div className="text-center py-10 text-gray-400">Loading...</div> : (
+        <div className="grid gap-3">
+          {products.map(product => {
+            const cat = categories.find(c => c.id === product.category || c.slug === product.category);
+            return (
+              <div key={product.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
+                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {product.image ? (
+                    <img src={product.image} alt="" className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-2xl opacity-30">{cat?.icon || '📦'}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-gray-800">{product.name}</div>
+                  <div className="text-xs text-gray-400">
+                    {product.brand && <span className="mr-2">{product.brand}</span>}
+                    {cat && <span className="bg-gray-100 px-1.5 py-0.5 rounded">{cat.icon} {cat.name_en || cat.name}</span>}
+                  </div>
+                  {product.bestPrice && (
+                    <div className="text-green-600 font-bold text-sm mt-1">${product.bestPrice.toFixed(2)} CAD</div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => { setSelectedProduct(product); setModal('links'); }} className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg transition-colors">🔗 Links</button>
+                  <button onClick={() => openEdit(product)} className="text-gray-400 hover:text-orange-500 transition-colors"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => deleteProduct(product.id)} className="text-gray-300 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                </div>
               </div>
-            </div>
-            <div className="text-right flex-shrink-0">
-              {product.bestPrice ? (
-                <div className="text-green-600 font-bold text-sm">€{product.bestPrice.toFixed(2)}</div>
-              ) : (
-                <div className="text-gray-400 text-xs">No price</div>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => { setSelectedProduct(product); setModal('links'); }}
-                className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1.5 rounded-lg font-medium transition-colors"
-              >
-                🔗 Links
-              </button>
-              <button onClick={() => openEdit(product)} className="text-gray-400 hover:text-orange-500 transition-colors p-1.5 hover:bg-orange-50 rounded-lg">
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button onClick={() => deleteProduct(product.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1.5 hover:bg-red-50 rounded-lg">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+          {products.length === 0 && <div className="text-center py-10 text-gray-400">No products yet. Add one!</div>}
+        </div>
+      )}
 
-      {/* Add/Edit Modal */}
       {(modal === 'add' || modal === 'edit') && (
-        <Modal title={modal === 'add' ? 'Add Product' : 'Edit Product'} onClose={() => setModal(null)}>
+        <Modal title={modal === 'edit' ? 'Edit Product' : 'Add Product'} onClose={() => setModal(null)}>
           <FormField label="Product Name" required>
-            <input className={inputCls} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. iPhone 15 Pro 256GB" />
+            <input className={inputCls} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. PlayStation 5 Digital Edition" />
           </FormField>
           <FormField label="Brand">
-            <input className={inputCls} value={form.brand} onChange={e => setForm({...form, brand: e.target.value})} placeholder="e.g. Apple" />
+            <input className={inputCls} value={form.brand} onChange={e => setForm({...form, brand: e.target.value})} placeholder="e.g. Sony" />
           </FormField>
           <FormField label="Category">
             <select className={inputCls} value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
-              {CATEGORIES.map(c => <option key={c.slug} value={c.slug}>{c.icon} {c.en}</option>)}
+              <option value="">Select a category...</option>
+              {categoryOptions.map(cat => (
+                <option key={cat.id} value={cat.slug}>
+                  {'  '.repeat(cat.depth)}{cat.icon} {cat.name_en || cat.name}
+                </option>
+              ))}
             </select>
-          </FormField>
-          <FormField label="Description">
-            <textarea className={inputCls} rows={3} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Product description..." />
           </FormField>
           <FormField label="Image URL">
             <input className={inputCls} value={form.image} onChange={e => setForm({...form, image: e.target.value})} placeholder="https://..." />
           </FormField>
-          <FormField label="Tags (comma separated)">
-            <input className={inputCls} value={form.tags} onChange={e => setForm({...form, tags: e.target.value})} placeholder="smartphone, apple, ios" />
+          <FormField label="Description">
+            <textarea className={inputCls} rows={3} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Product description..." />
           </FormField>
-          <div className="mb-4 flex items-center gap-2">
-            <input type="checkbox" id="featured" checked={form.featured} onChange={e => setForm({...form, featured: e.target.checked})} className="w-4 h-4 accent-orange-500" />
-            <label htmlFor="featured" className="text-sm text-gray-700">⭐ Featured Product (shown on homepage)</label>
+          <FormField label="Tags (comma separated)">
+            <input className={inputCls} value={form.tags} onChange={e => setForm({...form, tags: e.target.value})} placeholder="ps5, gaming, sony" />
+          </FormField>
+          <div className="flex items-center gap-2 mb-4">
+            <input type="checkbox" id="featured" checked={form.featured} onChange={e => setForm({...form, featured: e.target.checked})} className="w-4 h-4 text-orange-500" />
+            <label htmlFor="featured" className="text-sm text-gray-700">Featured product</label>
           </div>
-          {msg && <div className={`text-sm mb-3 px-3 py-2 rounded-lg ${msg.includes('Error') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{msg}</div>}
+          {msg && <div className={`text-sm mb-3 ${msg.includes('Error') ? 'text-red-600' : 'text-green-600'}`}>{msg}</div>}
           <div className="flex gap-2">
-            <button onClick={saveProduct} disabled={saving} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {saving ? 'Saving...' : 'Save Product'}
-            </button>
-            <button onClick={() => setModal(null)} className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button onClick={saveProduct} disabled={saving} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-semibold text-sm">{saving ? 'Saving...' : 'Save Product'}</button>
+            <button onClick={() => setModal(null)} className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600">Cancel</button>
           </div>
         </Modal>
       )}
 
-      {/* Price Links Modal */}
       {modal === 'links' && selectedProduct && (
         <PriceLinksModal product={selectedProduct} stores={stores} onClose={() => { setModal(null); loadProducts(); }} />
       )}
@@ -292,17 +623,17 @@ function ProductsTab() {
 }
 
 // ============================================================
-// PRICE LINKS MODAL (inside Products)
+// PRICE LINKS MODAL
 // ============================================================
 function PriceLinksModal({ product, stores, onClose }) {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ storeId: '', storeName: '', url: '', affiliateUrl: '', currentPrice: '', currency: 'EUR' });
+  const [form, setForm] = useState({ storeId: '', url: '', price: '', currency: 'CAD' });
   const [saving, setSaving] = useState(false);
-  const [scraping, setScraping] = useState({});
   const [msg, setMsg] = useState('');
+  const [scraping, setScraping] = useState({});
 
-  useEffect(() => { loadLinks(); }, []);
+  useEffect(() => { loadLinks(); }, [product.id]);
 
   async function loadLinks() {
     setLoading(true);
@@ -312,99 +643,88 @@ function PriceLinksModal({ product, stores, onClose }) {
   }
 
   async function addLink() {
-    if (!form.url.trim()) return setMsg('URL is required');
+    if (!form.storeId || !form.url.trim()) {
+      setMsg('⚠️ Select a store and enter URL');
+      return;
+    }
     setSaving(true);
     setMsg('');
-    try {
-      const payload = { ...form, productId: product.id };
-      const selected = stores.find(s => s.id === form.storeId);
-      if (selected && !form.storeName) payload.storeName = selected.name;
-      const res = await authFetch('/api/price-links', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        setMsg('Link added!');
-        setForm({ storeId: '', storeName: '', url: '', affiliateUrl: '', currentPrice: '', currency: 'EUR' });
-        loadLinks();
-      } else {
-        const err = await res.json();
-        setMsg(`Error: ${err.error}`);
-      }
-    } catch (e) {
-      setMsg(`Error: ${e.message}`);
-    } finally {
-      setSaving(false);
+    const store = stores.find(s => s.id === form.storeId);
+    const payload = {
+      productId: product.id,
+      storeId: form.storeId,
+      storeName: store?.name,
+      url: form.url.trim(),
+      currentPrice: form.price ? parseFloat(form.price) : null,
+      currency: form.currency,
+    };
+    const res = await authFetch('/api/price-links', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      setForm({ storeId: '', url: '', price: '', currency: 'CAD' });
+      loadLinks();
+      setMsg('✅ Link added!');
+    } else {
+      setMsg('⚠️ Failed to add');
     }
-  }
-
-  async function deleteLink(id) {
-    if (!confirm('Delete this price link?')) return;
-    await authFetch(`/api/price-links/${id}`, { method: 'DELETE' });
-    loadLinks();
+    setSaving(false);
   }
 
   async function scrapeLink(id) {
     setScraping(prev => ({ ...prev, [id]: true }));
-    setMsg('');
-    try {
-      const res = await authFetch('/api/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ linkId: id }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMsg(`✅ Price found: €${data.price}`);
-      } else {
-        setMsg(`⚠️ ${data.error || 'Could not extract price'}`);
-      }
-      loadLinks();
-    } catch (e) {
-      setMsg(`Error: ${e.message}`);
-    } finally {
-      setScraping(prev => ({ ...prev, [id]: false }));
-    }
+    const res = await authFetch('/api/scrape', {
+      method: 'POST',
+      body: JSON.stringify({ linkId: id }),
+    });
+    const data = await res.json();
+    setMsg(data.success ? `✅ Price: $${data.price} CAD` : `⚠️ ${data.error}`);
+    setScraping(prev => ({ ...prev, [id]: false }));
+    loadLinks();
+  }
+
+  async function deleteLink(id) {
+    if (!confirm('Delete?')) return;
+    await authFetch(`/api/price-links/${id}`, { method: 'DELETE' });
+    loadLinks();
   }
 
   return (
-    <Modal title={`Price Links - ${product.name}`} onClose={onClose}>
+    <Modal title={`Price Links - ${product.name}`} onClose={onClose} size="lg">
+      {msg && <div className={`mb-3 px-3 py-2 rounded-lg text-sm ${msg.includes('⚠️') || msg.includes('Error') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{msg}</div>}
+      
       {/* Add link form */}
-      <div className="bg-gray-50 rounded-xl p-4 mb-5 border border-gray-200">
-        <h4 className="font-semibold text-sm text-gray-700 mb-3">➕ Add Price Link</h4>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="text-xs text-gray-500 mb-1 block">Store</label>
+      <div className="bg-gray-50 rounded-xl p-4 mb-4">
+        <h4 className="font-semibold text-gray-700 text-sm mb-3">Add New Link</h4>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Store</label>
             <select className={inputCls} value={form.storeId} onChange={e => setForm({...form, storeId: e.target.value})}>
-              <option value="">-- Select Store --</option>
-              {stores.map(s => <option key={s.id} value={s.id}>{s.logo} {s.name}</option>)}
+              <option value="">Select store...</option>
+              {stores.map(s => (
+                <option key={s.id} value={s.id}>{s.logo ? '' : ''} {s.name}</option>
+              ))}
             </select>
           </div>
-          <div className="col-span-2">
-            <label className="text-xs text-gray-500 mb-1 block">Product URL *</label>
-            <input className={inputCls} value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://www.amazon.fr/..." />
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Product URL</label>
+            <input className={inputCls} value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://amazon.ca/..." />
           </div>
-          <div className="col-span-2">
-            <label className="text-xs text-gray-500 mb-1 block">Affiliate URL (optional)</label>
-            <input className={inputCls} value={form.affiliateUrl} onChange={e => setForm({...form, affiliateUrl: e.target.value})} placeholder="https://... (leave empty to use same URL)" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Manual Price (optional)</label>
+            <input type="number" step="0.01" className={inputCls} value={form.price} onChange={e => setForm({...form, price: e.target.value})} placeholder="549.99" />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Price (optional)</label>
-            <input className={inputCls} type="number" step="0.01" value={form.currentPrice} onChange={e => setForm({...form, currentPrice: e.target.value})} placeholder="29.99" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Currency</label>
+            <label className="block text-xs text-gray-500 mb-1">Currency</label>
             <select className={inputCls} value={form.currency} onChange={e => setForm({...form, currency: e.target.value})}>
-              <option value="EUR">EUR €</option>
-              <option value="GBP">GBP £</option>
+              <option value="CAD">CAD $</option>
               <option value="USD">USD $</option>
             </select>
           </div>
         </div>
-        {msg && (
-          <div className={`text-xs mt-2 px-2 py-1.5 rounded ${msg.includes('Error') || msg.includes('⚠️') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{msg}</div>
-        )}
         <button onClick={addLink} disabled={saving} className="mt-3 w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50">
           {saving ? 'Adding...' : '+ Add Link'}
         </button>
@@ -422,9 +742,14 @@ function PriceLinksModal({ product, stores, onClose }) {
             return (
               <div key={link.id} className="bg-white border border-gray-100 rounded-xl p-3">
                 <div className="flex items-start gap-3">
+                  {store?.logo && store.logo.startsWith('data:') ? (
+                    <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      <img src={store.logo} alt="" className="w-full h-full object-contain" />
+                    </div>
+                  ) : null}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold text-gray-700">{store?.logo} {store?.name || link.storeName || 'Unknown Store'}</span>
+                      <span className="text-xs font-semibold text-gray-700">{store?.name || link.storeName || 'Unknown Store'}</span>
                       <Badge status={link.scrapeStatus} />
                     </div>
                     <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline truncate block max-w-xs">{link.url}</a>
@@ -437,7 +762,7 @@ function PriceLinksModal({ product, stores, onClose }) {
                   </div>
                   <div className="text-right flex-shrink-0">
                     {link.currentPrice ? (
-                      <div className="text-green-600 font-bold text-sm">{link.currency === 'GBP' ? '£' : link.currency === 'USD' ? '$' : '€'}{link.currentPrice.toFixed(2)}</div>
+                      <div className="text-green-600 font-bold text-sm">${link.currentPrice.toFixed(2)} {link.currency || 'CAD'}</div>
                     ) : (
                       <div className="text-gray-400 text-xs">No price</div>
                     )}
@@ -469,13 +794,14 @@ function PriceLinksModal({ product, stores, onClose }) {
 }
 
 // ============================================================
-// STORES TAB
+// STORES TAB (with image upload)
 // ============================================================
 function StoresTab() {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ name: '', domain: '', logo: '🏪', color: '#666666', country: 'Global', scrapingConfig: { price: '', title: '' } });
+  const [modal, setModal] = useState(null); // null | 'add' | 'edit'
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [form, setForm] = useState({ name: '', domain: '', logo: '', color: '#666666', country: 'Canada', scrapingConfig: { price: '', title: '' } });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [seeding, setSeeding] = useState(false);
@@ -496,6 +822,25 @@ function StoresTab() {
     setSeeding(false);
   }
 
+  function openAdd() {
+    setForm({ name: '', domain: '', logo: '', color: '#666666', country: 'Canada', scrapingConfig: { price: '', title: '' } });
+    setSelectedStore(null);
+    setModal('add');
+  }
+
+  function openEdit(store) {
+    setForm({
+      name: store.name || '',
+      domain: store.domain || '',
+      logo: store.logo || '',
+      color: store.color || '#666666',
+      country: store.country || 'Canada',
+      scrapingConfig: store.scrapingConfig || { price: '', title: '' },
+    });
+    setSelectedStore(store);
+    setModal('edit');
+  }
+
   async function saveStore() {
     if (!form.name.trim() || !form.domain.trim()) return;
     setSaving(true);
@@ -505,15 +850,21 @@ function StoresTab() {
         ...form,
         scrapingConfig: form.scrapingConfig?.price ? form.scrapingConfig : null,
       };
-      const res = await authFetch('/api/stores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      let res;
+      if (modal === 'edit' && selectedStore) {
+        res = await authFetch(`/api/stores/${selectedStore.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await authFetch('/api/stores', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      }
       if (res.ok) {
-        setMsg('Store added!');
-        setModal(false);
-        setForm({ name: '', domain: '', logo: '🏪', color: '#666666', country: 'Global', scrapingConfig: { price: '', title: '' } });
+        setMsg('Store saved!');
+        setModal(null);
         loadStores();
       }
     } catch (e) {
@@ -537,7 +888,7 @@ function StoresTab() {
           <button onClick={seedStores} disabled={seeding} className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
             {seeding ? <RefreshCw className="w-4 h-4 animate-spin" /> : '🔄'} Load Default Stores
           </button>
-          <button onClick={() => setModal(true)} className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
+          <button onClick={openAdd} className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
             <Plus className="w-4 h-4" /> Add Store
           </button>
         </div>
@@ -546,46 +897,69 @@ function StoresTab() {
       {loading ? <div className="text-center py-10 text-gray-400">Loading...</div> : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {stores.map(store => (
-            <div key={store.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-              <div className="text-3xl">{store.logo}</div>
+            <div key={store.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3 hover:border-orange-200 transition-colors">
+              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {store.logo && store.logo.startsWith('data:') ? (
+                  <img src={store.logo} alt={store.name} className="w-full h-full object-contain" />
+                ) : store.logo && store.logo.length <= 4 ? (
+                  <span className="text-2xl">{store.logo}</span>
+                ) : (
+                  <span className="text-2xl">🏪</span>
+                )}
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-gray-800 text-sm">{store.name}</div>
                 <div className="text-xs text-gray-400">{store.domain}</div>
                 <div className="text-xs text-gray-400">{store.country}</div>
               </div>
-              <button onClick={() => deleteStore(store.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex gap-1">
+                <button onClick={() => openEdit(store)} className="text-gray-400 hover:text-orange-500 transition-colors p-1">
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button onClick={() => deleteStore(store.id)} className="text-gray-300 hover:text-red-400 transition-colors p-1">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
       {modal && (
-        <Modal title="Add Store" onClose={() => setModal(false)}>
+        <Modal title={modal === 'edit' ? 'Edit Store' : 'Add Store'} onClose={() => setModal(null)}>
           <FormField label="Store Name" required>
-            <input className={inputCls} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Amazon FR" />
+            <input className={inputCls} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Amazon Canada" />
           </FormField>
           <FormField label="Domain" required>
-            <input className={inputCls} value={form.domain} onChange={e => setForm({...form, domain: e.target.value})} placeholder="e.g. amazon.fr" />
+            <input className={inputCls} value={form.domain} onChange={e => setForm({...form, domain: e.target.value})} placeholder="e.g. amazon.ca" />
           </FormField>
+          
+          {/* Image Upload */}
+          <div className="mb-4">
+            <ImageUpload 
+              value={form.logo} 
+              onChange={(val) => setForm({...form, logo: val})} 
+              label="Store Logo (512x512 PNG/SVG recommended)"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Logo Emoji">
-              <input className={inputCls} value={form.logo} onChange={e => setForm({...form, logo: e.target.value})} />
+            <FormField label="Brand Color">
+              <input type="color" className="w-full h-10 rounded-lg cursor-pointer" value={form.color} onChange={e => setForm({...form, color: e.target.value})} />
             </FormField>
             <FormField label="Country">
-              <input className={inputCls} value={form.country} onChange={e => setForm({...form, country: e.target.value})} placeholder="France" />
+              <input className={inputCls} value={form.country} onChange={e => setForm({...form, country: e.target.value})} placeholder="Canada" />
             </FormField>
           </div>
           <FormField label="Custom Price CSS Selector (optional)">
-            <input className={inputCls} value={form.scrapingConfig.price} onChange={e => setForm({...form, scrapingConfig: {...form.scrapingConfig, price: e.target.value}})} placeholder=".product-price, #price" />
+            <input className={inputCls} value={form.scrapingConfig?.price || ''} onChange={e => setForm({...form, scrapingConfig: {...form.scrapingConfig, price: e.target.value}})} placeholder=".product-price, #price" />
           </FormField>
           {msg && <div className="text-sm mb-3 text-green-600">{msg}</div>}
           <div className="flex gap-2">
             <button onClick={saveStore} disabled={saving} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-semibold text-sm">
-              {saving ? 'Saving...' : 'Add Store'}
+              {saving ? 'Saving...' : 'Save Store'}
             </button>
-            <button onClick={() => setModal(false)} className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600">Cancel</button>
+            <button onClick={() => setModal(null)} className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600">Cancel</button>
           </div>
         </Modal>
       )}
@@ -617,80 +991,156 @@ function ScrapingTab() {
     setMsg('');
     const res = await authFetch('/api/scrape', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ all: true }),
     });
     const data = await res.json();
-    setMsg(data.message || 'Scraping started!');
+    if (res.ok) {
+      setMsg(`✅ Completed! ${data.summary?.success || 0}/${data.summary?.total || 0} links updated.`);
+    } else {
+      setMsg(`⚠️ Error: ${data.error}`);
+    }
     setScraping(false);
-    setTimeout(loadStatus, 3000);
+    loadStatus();
   }
-
-  if (loading) return <div className="text-center py-10 text-gray-400">Loading...</div>;
-  if (!status) return null;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-lg font-bold text-gray-800">Scraping Status</h2>
-        <button
-          onClick={triggerScrape}
-          disabled={scraping || status.cronRunning}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
-        >
-          {(scraping || status.cronRunning) ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          {status.cronRunning ? 'Scraping in progress...' : 'Scrape All Now'}
+        <button onClick={triggerScrape} disabled={scraping} className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50">
+          {scraping ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          Scrape All Now
         </button>
       </div>
 
       {msg && (
-        <div className="mb-4 px-4 py-3 bg-blue-50 text-blue-700 rounded-xl text-sm border border-blue-100">{msg}</div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Total Links', value: status.total, color: 'bg-blue-50 text-blue-700', icon: '🔗' },
-          { label: 'Success', value: status.success, color: 'bg-green-50 text-green-700', icon: '✅' },
-          { label: 'Failed', value: status.failed, color: 'bg-red-50 text-red-700', icon: '❌' },
-          { label: 'Cron Active', value: status.cronInitialized ? 'Yes' : 'No', color: 'bg-purple-50 text-purple-700', icon: '⏰' },
-        ].map(item => (
-          <div key={item.label} className={`rounded-xl p-4 ${item.color}`}>
-            <div className="text-2xl mb-1">{item.icon}</div>
-            <div className="text-2xl font-black">{item.value}</div>
-            <div className="text-xs opacity-70">{item.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {status.lastCronRun && (
-        <div className="mb-4 text-sm text-gray-500 bg-gray-50 px-4 py-2.5 rounded-lg">
-          ⏰ Cron runs every 3 hours. Last run: <strong>{new Date(status.lastCronRun).toLocaleString()}</strong>
+        <div className={`mb-4 px-4 py-3 rounded-xl text-sm ${msg.includes('⚠️') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+          {msg}
         </div>
       )}
 
-      {/* Recent links */}
-      <h3 className="font-semibold text-gray-700 mb-3 text-sm">Recent Scraping Activity</h3>
-      <div className="space-y-2">
-        {status.recentLinks.map(link => (
-          <div key={link.id} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3">
-            <Badge status={link.scrapeStatus} />
-            <div className="flex-1 min-w-0">
-              <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline truncate block">
-                {link.store?.logo} {link.store?.name || 'Unknown'} — {link.url.substring(0, 60)}...
-              </a>
-              {link.scrapeError && <div className="text-xs text-red-400 mt-0.5">{link.scrapeError}</div>}
-            </div>
-            <div className="flex-shrink-0 text-right">
-              {link.currentPrice && <div className="text-green-600 font-bold text-sm">€{link.currentPrice?.toFixed(2)}</div>}
-              {link.lastScrapedAt && <div className="text-xs text-gray-400">{new Date(link.lastScrapedAt).toLocaleDateString()}</div>}
-            </div>
+      {loading ? <div className="text-center py-10 text-gray-400">Loading...</div> : status && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <div className="text-3xl font-black text-gray-800">{status.totalLinks || 0}</div>
+            <div className="text-sm text-gray-500">Total Price Links</div>
           </div>
-        ))}
-      </div>
-      {status.recentLinks.length === 0 && (
-        <div className="text-center py-8 text-gray-400 text-sm">No scraping history yet. Add products and price links, then scrape!</div>
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <div className="text-3xl font-black text-green-600">{status.successLinks || 0}</div>
+            <div className="text-sm text-gray-500">Successfully Scraped</div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <div className="text-3xl font-black text-red-500">{status.failedLinks || 0}</div>
+            <div className="text-sm text-gray-500">Failed / Pending</div>
+          </div>
+        </div>
       )}
+
+      <div className="mt-6 bg-blue-50 rounded-xl p-4">
+        <h3 className="font-semibold text-blue-800 mb-2">About Automatic Scraping</h3>
+        <p className="text-sm text-blue-700">
+          Prices are automatically updated every 3 hours via Vercel Cron Jobs. 
+          You can also trigger a manual scrape using the button above.
+        </p>
+        <p className="text-sm text-blue-600 mt-2">
+          <strong>Note:</strong> Some stores (Amazon, Walmart) have bot protection. 
+          Manual price entry is recommended for these stores.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ALL PRICE LINKS TAB
+// ============================================================
+function AllPriceLinksTab() {
+  const [links, setLinks] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [scraping, setScraping] = useState({});
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      authFetch('/api/price-links').then(r => r.json()),
+      authFetch('/api/products?limit=200&sort=recent').then(r => r.json()),
+      authFetch('/api/stores').then(r => r.json()),
+    ]).then(([l, p, s]) => {
+      setLinks(l);
+      setProducts(p.products || []);
+      setStores(s);
+      setLoading(false);
+    });
+  }, []);
+
+  function getProduct(productId) { return products.find(p => p.id === productId); }
+  function getStore(storeId) { return stores.find(s => s.id === storeId); }
+
+  async function scrapeLink(id) {
+    setScraping(prev => ({ ...prev, [id]: true }));
+    const res = await authFetch('/api/scrape', {
+      method: 'POST',
+      body: JSON.stringify({ linkId: id }),
+    });
+    const data = await res.json();
+    setMsg(data.success ? `✅ Price: $${data.price} CAD` : `⚠️ ${data.error}`);
+    setScraping(prev => ({ ...prev, [id]: false }));
+    const updated = await authFetch('/api/price-links').then(r => r.json());
+    setLinks(updated);
+  }
+
+  async function deleteLink(id) {
+    if (!confirm('Delete?')) return;
+    await authFetch(`/api/price-links/${id}`, { method: 'DELETE' });
+    setLinks(links.filter(l => l.id !== id));
+  }
+
+  if (loading) return <div className="text-center py-10 text-gray-400">Loading...</div>;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-lg font-bold text-gray-800">All Price Links ({links.length})</h2>
+      </div>
+      {msg && <div className="mb-3 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">{msg}</div>}
+      <div className="space-y-2">
+        {links.map(link => {
+          const product = getProduct(link.productId);
+          const store = getStore(link.storeId);
+          return (
+            <div key={link.id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3">
+              <Badge status={link.scrapeStatus} />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-gray-700">{product?.name || 'Unknown product'}</div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs text-gray-500">{store?.name || link.storeName}</span>
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline truncate max-w-xs">{link.url.substring(0, 50)}...</a>
+                </div>
+                {link.scrapeError && <div className="text-xs text-red-400 mt-0.5">{link.scrapeError}</div>}
+              </div>
+              <div className="flex-shrink-0 text-right">
+                {link.currentPrice ? (
+                  <div className="text-green-600 font-bold text-sm">${link.currentPrice.toFixed(2)} CAD</div>
+                ) : <div className="text-gray-400 text-xs">No price</div>}
+                {link.lastScrapedAt && <div className="text-xs text-gray-400">{new Date(link.lastScrapedAt).toLocaleDateString()}</div>}
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => scrapeLink(link.id)} disabled={scraping[link.id]} className="p-1.5 text-blue-400 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50">
+                  <RefreshCw className={`w-3.5 h-3.5 ${scraping[link.id] ? 'animate-spin' : ''}`} />
+                </button>
+                <button onClick={() => deleteLink(link.id)} className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {links.length === 0 && (
+          <div className="text-center py-10 text-gray-400">No price links yet. Add products and price links from the Products tab.</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -701,52 +1151,68 @@ function ScrapingTab() {
 export default function AdminPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('products');
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthed, setIsAuthed] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const token = getAdminToken();
-    if (!isTokenValid(token)) {
+    if (!token || !isTokenValid(token)) {
       router.push('/admin/login');
     } else {
-      setIsAuthed(true);
+      // Ensure cookie is set for middleware
+      document.cookie = `ql_admin_token=${token}; path=/; max-age=${24*60*60}; SameSite=Strict`;
+      setAuthenticated(true);
     }
-    setAuthChecked(true);
-  }, []);
+    setChecking(false);
+  }, [router]);
 
-  const handleLogout = () => {
+  function handleLogout() {
     localStorage.removeItem('ql_admin_token');
+    document.cookie = 'ql_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     router.push('/admin/login');
-  };
+  }
 
-  if (!authChecked) return null;
-  if (!isAuthed) return null;
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 text-orange-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!authenticated) return null;
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm">Back to site</span>
+            {/* Back to Homepage */}
+            <Link 
+              href="/" 
+              className="flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <Home className="w-4 h-4" />
             </Link>
+            
             <div className="h-5 w-px bg-gray-200" />
+            
             <div className="flex items-center gap-2">
-              <div className="bg-gradient-to-br from-orange-500 to-amber-500 text-white w-7 h-7 rounded-lg flex items-center justify-center">
+              <div className="bg-gradient-to-br from-orange-500 to-amber-500 text-white w-8 h-8 rounded-lg flex items-center justify-center">
                 <Zap className="w-4 h-4" />
               </div>
-              <h1 className="font-black text-gray-800">QuickLoot<span className="text-orange-500">.net</span> Admin</h1>
+              <div>
+                <div className="font-black text-gray-800 text-sm leading-none">QuickLoot<span className="text-orange-500">.net</span></div>
+                <div className="text-[10px] text-gray-400">Admin Panel</div>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full border border-green-200">
-              <Shield className="w-3.5 h-3.5" />
+            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-500">
+              <Shield className="w-3.5 h-3.5 text-green-500" />
               <span>JWT Secured</span>
-            </div>
-            <div className="text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full hidden sm:block">
-              ⏰ Auto-scrape every 3 hours
             </div>
             <button
               onClick={handleLogout}
@@ -781,105 +1247,11 @@ export default function AdminPage() {
         {/* Tab content */}
         <div>
           {activeTab === 'products' && <ProductsTab />}
+          {activeTab === 'categories' && <CategoriesTab />}
           {activeTab === 'price-links' && <AllPriceLinksTab />}
           {activeTab === 'stores' && <StoresTab />}
           {activeTab === 'scraping' && <ScrapingTab />}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// ALL PRICE LINKS TAB (standalone)
-// ============================================================
-function AllPriceLinksTab() {
-  const [links, setLinks] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [stores, setStores] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [scraping, setScraping] = useState({});
-  const [msg, setMsg] = useState('');
-
-  useEffect(() => {
-    Promise.all([
-      authFetch('/api/price-links').then(r => r.json()),
-      authFetch('/api/products?limit=200&sort=recent').then(r => r.json()),
-      authFetch('/api/stores').then(r => r.json()),
-    ]).then(([l, p, s]) => {
-      setLinks(l);
-      setProducts(p.products || []);
-      setStores(s);
-      setLoading(false);
-    });
-  }, []);
-
-  function getProduct(productId) { return products.find(p => p.id === productId); }
-  function getStore(storeId) { return stores.find(s => s.id === storeId); }
-
-  async function scrapeLink(id) {
-    setScraping(prev => ({ ...prev, [id]: true }));
-    const res = await authFetch('/api/scrape', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ linkId: id }),
-    });
-    const data = await res.json();
-    setMsg(data.success ? `✅ Price: €${data.price}` : `⚠️ ${data.error}`);
-    setScraping(prev => ({ ...prev, [id]: false }));
-    const updated = await authFetch('/api/price-links').then(r => r.json());
-    setLinks(updated);
-  }
-
-  async function deleteLink(id) {
-    if (!confirm('Delete?')) return;
-    await authFetch(`/api/price-links/${id}`, { method: 'DELETE' });
-    setLinks(links.filter(l => l.id !== id));
-  }
-
-  if (loading) return <div className="text-center py-10 text-gray-400">Loading...</div>;
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-lg font-bold text-gray-800">All Price Links ({links.length})</h2>
-      </div>
-      {msg && <div className="mb-3 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">{msg}</div>}
-      <div className="space-y-2">
-        {links.map(link => {
-          const product = getProduct(link.productId);
-          const store = getStore(link.storeId);
-          return (
-            <div key={link.id} className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3">
-              <Badge status={link.scrapeStatus} />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold text-gray-700">{product?.name || 'Unknown product'}</div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-gray-500">{store?.logo} {store?.name || link.storeName}</span>
-                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline truncate max-w-xs">{link.url.substring(0, 50)}...</a>
-                </div>
-                {link.scrapeError && <div className="text-xs text-red-400 mt-0.5">{link.scrapeError}</div>}
-              </div>
-              <div className="flex-shrink-0 text-right">
-                {link.currentPrice ? (
-                  <div className="text-green-600 font-bold text-sm">€{link.currentPrice.toFixed(2)}</div>
-                ) : <div className="text-gray-400 text-xs">No price</div>}
-                {link.lastScrapedAt && <div className="text-xs text-gray-400">{new Date(link.lastScrapedAt).toLocaleDateString()}</div>}
-              </div>
-              <div className="flex gap-1">
-                <button onClick={() => scrapeLink(link.id)} disabled={scraping[link.id]} className="p-1.5 text-blue-400 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50">
-                  <RefreshCw className={`w-3.5 h-3.5 ${scraping[link.id] ? 'animate-spin' : ''}`} />
-                </button>
-                <button onClick={() => deleteLink(link.id)} className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        {links.length === 0 && (
-          <div className="text-center py-10 text-gray-400">No price links yet. Add products and price links from the Products tab.</div>
-        )}
       </div>
     </div>
   );
