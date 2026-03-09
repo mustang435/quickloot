@@ -101,19 +101,21 @@ function AdBanner({ height = 90, label = 'Advertisement' }) {
 // Category Icon Component (supports image or emoji)
 // ============================================================
 function CategoryIcon({ category, size = 'md' }) {
+  if (!category) return null;
+
   const sizeClasses = {
     sm: 'w-6 h-6 text-lg',
     md: 'w-10 h-10 text-2xl',
     lg: 'w-12 h-12 text-3xl',
   };
 
-  // If category has an image (base64 or URL)
-  if (category.image && (category.image.startsWith('data:') || category.image.startsWith('http'))) {
+  // If category has an image (base64 or URL) and it is a string
+  if (category.image && typeof category.image === 'string' && (category.image.startsWith('data:') || category.image.startsWith('http'))) {
     return (
       <div className={`${sizeClasses[size].split(' ').slice(0, 2).join(' ')} rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center`}>
         <img 
           src={category.image} 
-          alt={category.name_en || category.name || ''} 
+          alt={category.name_en || category.name || 'Category'} 
           className="w-full h-full object-contain"
         />
       </div>
@@ -122,7 +124,7 @@ function CategoryIcon({ category, size = 'md' }) {
 
   // Otherwise use emoji icon
   return (
-    <span className={sizeClasses[size].split(' ').slice(2).join(' ')}>
+    <span className={sizeClasses[size]?.split(' ').slice(2).join(' ') || 'text-2xl'}>
       {category.icon || '📁'}
     </span>
   );
