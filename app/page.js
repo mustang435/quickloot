@@ -124,6 +124,8 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery }) 
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('search')}
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent text-sm bg-gray-50"
+              suppressHydrationWarning
+              autoComplete="off"
             />
           </div>
           <button
@@ -349,12 +351,23 @@ export default function App() {
   // Seed initial data and load products
   useEffect(() => {
     async function init() {
-      // Seed categories and stores if not done
-      if (!localStorage.getItem('ql_seeded')) {
-        await fetch('/api/seed', { method: 'POST' });
-        localStorage.setItem('ql_seeded', '1');
+      try {
+        if (!localStorage.getItem('ql_seeded')) {
+          try {
+            await fetch('/api/seed', { method: 'POST' });
+          } catch (e) {}
+          localStorage.setItem('ql_seeded', '1');
+        }
+        try {
+          const statsRes = await fetch('/api/stats');
+          if (statsRes.ok) {
+            const s = await statsRes.json();
+            setStats(s);
+          }
+        } catch (e) {}
+      } finally {
+        setSeeded(true);
       }
-      setSeeded(true);
     }
     init();
   }, []);
