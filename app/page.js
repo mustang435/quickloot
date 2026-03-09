@@ -132,12 +132,14 @@ function CategoryIcon({ category, size = 'md' }) {
 // Build category tree (for nested display)
 // ============================================================
 function buildCategoryTree(categories, parentId = null) {
+  if (!categories || !Array.isArray(categories)) return [];
+  
   return categories
-    .filter(c => (c.parentId || null) === parentId)
+    .filter(c => c && (c.parentId || null) === parentId)
     .sort((a, b) => (a.order || 99) - (b.order || 99))
     .map(cat => ({
       ...cat,
-      children: buildCategoryTree(categories, cat.id)
+      children: buildCategoryTree(categories, cat.id || cat._id || cat.slug)
     }));
 }
 
@@ -167,18 +169,23 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery, ca
   };
 
   // Render category with children
-  const renderCategoryItem = (cat, depth = 0) => {
-    if (!cat || !cat.id) return null; // SAFEGUARD
+  const renderCategoryItem = (cat, index, depth = 0) => {
+    if (!cat || (!cat.id && !cat._id && !cat.slug)) return null; // SAFEGUARD: ignore invalid categories
+
+    const catId = cat.id || cat._id || cat.slug || `cat-${index}`;
+    const catSlug = cat.slug || cat.id || cat._id || ''; 
+    
+    // Prevent rendering if there's no way to link to it
+    if (!catSlug) return null;
 
     const hasChildren = Array.isArray(cat.children) && cat.children.length > 0;
-    const isExpanded = !!expandedCats[cat.id];
-    const catSlug = cat.slug || cat.id || ''; // Fallback to ID or empty string
+    const isExpanded = !!expandedCats[catId];
     
     return (
       <div 
-        key={cat.id || `cat-${Math.random()}`} 
-        onMouseEnter={() => hasChildren && setCatExpanded(cat.id, true)}
-        onMouseLeave={() => hasChildren && setCatExpanded(cat.id, false)}
+        key={catId} 
+        onMouseEnter={() => hasChildren && setCatExpanded(catId, true)}
+        onMouseLeave={() => hasChildren && setCatExpanded(catId, false)}
       >
         <div 
           className="flex items-center justify-between px-4 py-2 hover:bg-orange-50 text-gray-700 hover:text-orange-600 transition-colors text-sm group"
@@ -186,7 +193,7 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery, ca
         >
           {/* Main Clickable Link */}
           <Link 
-            href={catSlug ? `/?category=${catSlug}` : '/'} 
+            href={`/?category=${catSlug}`} 
             onClick={() => setCatOpen(false)} 
             className="flex items-center gap-3 flex-1 py-1"
           >
@@ -199,7 +206,7 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery, ca
           {/* Toggle Button for Children (useful for mobile) */}
           {hasChildren && (
             <button 
-              onClick={(e) => toggleCat(e, cat.id)}
+              onClick={(e) => toggleCat(e, catId)}
               className="p-1.5 hover:bg-orange-100 rounded-md transition-colors text-gray-400 hover:text-orange-600"
             >
               <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : '-rotate-90'}`} />
@@ -210,7 +217,9 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery, ca
         {/* Children (Accordion) */}
         {hasChildren && isExpanded && (
           <div className="bg-orange-50/30 border-l-2 border-orange-200 ml-6 pl-1 my-1 rounded-bl-md">
-            {cat.children.map(child => renderCategoryItem(child, depth + 1))}
+            {cat.children
+               .filter(child => child && (child.id || child._id || child.slug))
+               .map((child, childIdx) => renderCategoryItem(child, childIdx, depth + 1))}
           </div>
         )}
       </div>
@@ -254,7 +263,7 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery, ca
           </button>
           {catOpen && categories?.length > 0 && (
             <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-2xl border border-gray-100 w-72 z-50 py-2 max-h-96 overflow-y-auto">
-              {categoryTree?.map(cat => renderCategoryItem(cat))}
+              {categoryTree?.filter(cat => cat && (cat.id || cat._id || cat.slug)).map((cat, rootIdx) => renderCategoryItem(cat, rootIdx))}
             </div>
           )}
           {catOpen && (!categories || categories.length === 0) && (

@@ -658,9 +658,10 @@ export default function ProductPage({ params }) {
                     {categoryBreadcrumb.map((cat, idx) => {
                       if (!cat || (!cat.slug && !cat.id)) return null; // SAFEGUARD
                       const catSlug = cat.slug || cat.id || '';
+                      const stableKey = cat.id || cat._id || cat.slug || `bc-${idx}`;
                       
                       return (
-                        <div key={cat.id || `bc-${Math.random()}`} className="flex relative" style={{ paddingLeft: `${idx * 12}px` }}>
+                        <div key={stableKey} className="flex relative" style={{ paddingLeft: `${idx * 12}px` }}>
                           {/* Tree line visual effect for children */}
                           {idx > 0 && (
                             <div className="absolute left-[calc(-12px+8px)] top-0 bottom-0 w-px bg-orange-200" style={{ left: `${(idx - 1) * 12 + 10}px`, bottom: '50%' }} />
