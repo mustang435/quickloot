@@ -39,10 +39,13 @@ Vercel'de **"Environment Variables"** bölümüne şunları ekle:
 | `MONGO_URL` | MongoDB Atlas'tan aldığın link |
 | `DB_NAME` | `quickloot` |
 | `JWT_SECRET` | Rastgele uzun bir şifre (en az 32 karakter) |
+| `ADMIN_PASSWORD_HASH_B64` | `JDJiJDEyJG02WDBXRmp1ZG5MWHBwMXAzV0ZweE9TSm4yL2lxLjlGS0hNT25IdzRIY2V3bTk4MjFVS3Nx` |
 | `ADMIN_SESSION_HOURS` | `24` |
 | `CRON_SECRET` | Rastgele bir şifre (güvenlik için) |
 
 > 💡 **JWT_SECRET örneği:** `benim-cok-gizli-anahtarim-123456789-quickloot`
+> 
+> 🔐 **ADMIN_PASSWORD_HASH_B64:** Bu değer `quickloot_strong_password_123!` şifresinin Base64 encoded hash'idir.
 
 7. **"Deploy"** butonuna tıkla
 8. 2-3 dakika bekle...
