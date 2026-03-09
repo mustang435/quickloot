@@ -159,21 +159,54 @@ function Header({ lang, t, switchLang, onSearch, searchQuery, setSearchQuery, ca
   };
 
   // Render category with children
-  const renderCategoryItem = (cat, depth = 0) => (
-    <div key={cat.id}>
-      <Link
-        href={`/?category=${cat.slug}`}
-        onClick={() => setCatOpen(false)}
-        className="flex items-center gap-3 px-4 py-2.5 hover:bg-orange-50 text-gray-700 hover:text-orange-600 transition-colors text-sm"
-        style={{ paddingLeft: `${16 + depth * 16}px` }}
-      >
-        <CategoryIcon category={cat} size="sm" />
-        <span>{getCategoryName(cat)}</span>
-        {cat.children?.length > 0 && <ChevronRight className="w-3 h-3 ml-auto text-gray-400" />}
-      </Link>
-      {cat.children?.map(child => renderCategoryItem(child, depth + 1))}
-    </div>
-  );
+  const renderCategoryItem = (cat, depth = 0) => {
+    const hasChildren = cat.children?.length > 0;
+    
+    return (
+      <div key={cat.id}>
+        <div 
+          className="flex items-center gap-3 px-4 py-2.5 hover:bg-orange-50 text-gray-700 hover:text-orange-600 transition-colors text-sm cursor-pointer"
+          style={{ paddingLeft: `${16 + depth * 16}px` }}
+          onClick={(e) => {
+            if (hasChildren) {
+              e.preventDefault();
+              // Toggle expanded state logic could be added here if we want manual toggle.
+              // For a simple dropdown, CSS hover or checking the route works.
+              // To make it fully interactive, we add a toggle state:
+            } else {
+              setCatOpen(false);
+            }
+          }}
+        >
+          {hasChildren ? (
+            <div className="flex-1 flex items-center justify-between" onClick={(e) => {
+               // If clicked on the category name but it has children, maybe we want to go to that category or expand it?
+               // Assuming user wants to see products from the parent category too, we'll make the name a link and the arrow a toggle, or just link everything.
+            }}>
+              <Link href={`/?category=${cat.slug}`} onClick={() => setCatOpen(false)} className="flex items-center gap-3 flex-1">
+                <CategoryIcon category={cat} size="sm" />
+                <span>{getCategoryName(cat)}</span>
+              </Link>
+            </div>
+          ) : (
+            <Link href={`/?category=${cat.slug}`} onClick={() => setCatOpen(false)} className="flex items-center gap-3 flex-1">
+              <CategoryIcon category={cat} size="sm" />
+              <span>{getCategoryName(cat)}</span>
+            </Link>
+          )}
+          
+          {hasChildren && <ChevronDown className="w-3 h-3 ml-auto text-gray-400" />}
+        </div>
+        
+        {/* Always render children but indent them. In an accordion we would hide/show based on state. For a dropdown menu, we can just render them indented. */}
+        {hasChildren && (
+          <div className="border-l-2 border-orange-100 ml-6 pl-2 my-1">
+            {cat.children.map(child => renderCategoryItem(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">

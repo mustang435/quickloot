@@ -203,7 +203,38 @@ export async function GET(request, { params }) {
       const skip = Math.max(parseInt(searchParams.get('skip') || '0'), 0);
 
       let query = {};
-      if (category) query.category = category;
+      
+      // If a category is requested, we need to match the category OR its subcategories
+      if (category) {
+        // Find category to check its ID
+        const targetCategory = await db.collection('categories').findOne({ 
+          $or: [{ slug: category }, { id: category }] 
+        });
+        
+        if (targetCategory) {
+          // Find all subcategories (recursively, but typically just 1 level deep is enough)
+          const allCategories = await db.collection('categories').find({}).toArray();
+          
+          const validIds = [targetCategory.slug, targetCategory.id];
+          
+          // Helper to find all children recursively
+          const findChildren = (parentId) => {
+            const children = allCategories.filter(c => c.parentId === parentId);
+            children.forEach(child => {
+              validIds.push(child.slug);
+              validIds.push(child.id);
+              findChildren(child.id);
+            });
+          };
+          
+          findChildren(targetCategory.id);
+          
+          query.category = { $in: validIds };
+        } else {
+          query.category = category;
+        }
+      }
+      
       if (featured === 'true') query.featured = true;
 
       let sortObj = {};

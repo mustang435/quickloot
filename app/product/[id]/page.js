@@ -249,46 +249,42 @@ function ProsConsSection({ product, lang, t }) {
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
         {/* Pros */}
-        <div className="p-5">
-          <h3 className="font-bold text-green-700 mb-3 flex items-center gap-2 text-sm">
-            <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-              <Check className="w-4 h-4 text-green-600" />
-            </div>
+        <div className="p-6 bg-green-50/30">
+          <h3 className="font-bold text-green-800 mb-4 flex items-center gap-2 text-base">
+            <span className="text-xl">✅</span>
             {t.prosTitle}
           </h3>
           {pros && pros.length > 0 ? (
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {pros.map((pro, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                  <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                <li key={i} className="flex items-start gap-2 text-sm text-green-900/80 font-medium">
+                  <span className="text-green-500 mt-0.5 font-bold">•</span>
                   <span>{pro}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-400 text-xs italic">—</p>
+            <p className="text-green-800/40 text-sm italic">—</p>
           )}
         </div>
 
         {/* Cons */}
-        <div className="p-5">
-          <h3 className="font-bold text-red-700 mb-3 flex items-center gap-2 text-sm">
-            <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
-              <X className="w-4 h-4 text-red-600" />
-            </div>
+        <div className="p-6 bg-red-50/30">
+          <h3 className="font-bold text-red-800 mb-4 flex items-center gap-2 text-base">
+            <span className="text-xl">❌</span>
             {t.consTitle}
           </h3>
           {cons && cons.length > 0 ? (
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {cons.map((con, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                  <X className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <li key={i} className="flex items-start gap-2 text-sm text-red-900/80 font-medium">
+                  <span className="text-red-500 mt-0.5 font-bold">•</span>
                   <span>{con}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-400 text-xs italic">—</p>
+            <p className="text-red-800/40 text-sm italic">—</p>
           )}
         </div>
       </div>
