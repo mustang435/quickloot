@@ -428,7 +428,10 @@ function ProductsTab() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [form, setForm] = useState({ name: '', brand: '', description: '', category: '', image: '', featured: false, tags: '' });
+  const [form, setForm] = useState({ 
+    name: '', brand: '', description: '', category: '', image: '', featured: false, tags: '',
+    pros: '', cons: '', specs: ''
+  });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -459,7 +462,10 @@ function ProductsTab() {
   }
 
   function openAdd() {
-    setForm({ name: '', brand: '', description: '', category: '', image: '', featured: false, tags: '' });
+    setForm({ 
+      name: '', brand: '', description: '', category: '', image: '', featured: false, tags: '',
+      pros: '', cons: '', specs: ''
+    });
     setSelectedProduct(null);
     setModal('add');
   }
@@ -473,6 +479,9 @@ function ProductsTab() {
       image: product.image || '',
       featured: product.featured || false,
       tags: (product.tags || []).join(', '),
+      pros: (product.pros || []).join('\n'),
+      cons: (product.cons || []).join('\n'),
+      specs: product.specs ? Object.entries(product.specs).map(([k,v]) => `${k}: ${v}`).join('\n') : '',
     });
     setSelectedProduct(product);
     setModal('edit');
@@ -483,10 +492,39 @@ function ProductsTab() {
     setSaving(true);
     setMsg('');
     try {
+      // Parse pros (line separated)
+      const pros = form.pros ? form.pros.split('\n').map(l => l.trim()).filter(Boolean) : [];
+      // Parse cons (line separated)
+      const cons = form.cons ? form.cons.split('\n').map(l => l.trim()).filter(Boolean) : [];
+      // Parse specs (key: value format, line separated)
+      const specs = {};
+      if (form.specs) {
+        form.specs.split('\n').forEach(line => {
+          const idx = line.indexOf(':');
+          if (idx > 0) {
+            const key = line.substring(0, idx).trim();
+            const value = line.substring(idx + 1).trim();
+            if (key && value) specs[key] = value;
+          }
+        });
+      }
+
       const payload = {
         ...form,
         tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        pros,
+        cons,
+        specs: Object.keys(specs).length > 0 ? specs : null,
       };
+
+      // Remove string versions
+      delete payload.pros;
+      delete payload.cons;
+      delete payload.specs;
+      payload.pros = pros;
+      payload.cons = cons;
+      payload.specs = Object.keys(specs).length > 0 ? specs : null;
+
       let res;
       if (modal === 'edit' && selectedProduct) {
         res = await authFetch(`/api/products/${selectedProduct.id}`, {
@@ -576,13 +614,15 @@ function ProductsTab() {
       )}
 
       {(modal === 'add' || modal === 'edit') && (
-        <Modal title={modal === 'edit' ? 'Edit Product' : 'Add Product'} onClose={() => setModal(null)}>
-          <FormField label="Product Name" required>
-            <input className={inputCls} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. PlayStation 5 Digital Edition" />
-          </FormField>
-          <FormField label="Brand">
-            <input className={inputCls} value={form.brand} onChange={e => setForm({...form, brand: e.target.value})} placeholder="e.g. Sony" />
-          </FormField>
+        <Modal title={modal === 'edit' ? 'Edit Product' : 'Add Product'} onClose={() => setModal(null)} size="lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="Product Name" required>
+              <input className={inputCls} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. PlayStation 5 Digital Edition" />
+            </FormField>
+            <FormField label="Brand">
+              <input className={inputCls} value={form.brand} onChange={e => setForm({...form, brand: e.target.value})} placeholder="e.g. Sony" />
+            </FormField>
+          </div>
           <FormField label="Category">
             <select className={inputCls} value={form.category} onChange={e => setForm({...form, category: e.target.value})}>
               <option value="">Select a category...</option>
@@ -597,8 +637,42 @@ function ProductsTab() {
             <input className={inputCls} value={form.image} onChange={e => setForm({...form, image: e.target.value})} placeholder="https://..." />
           </FormField>
           <FormField label="Description">
-            <textarea className={inputCls} rows={3} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Product description..." />
+            <textarea className={inputCls} rows={2} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Product description..." />
           </FormField>
+          
+          {/* Pros & Cons */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="✅ Pros (one per line)">
+              <textarea 
+                className={inputCls} 
+                rows={4} 
+                value={form.pros} 
+                onChange={e => setForm({...form, pros: e.target.value})} 
+                placeholder="Lightning-fast SSD&#10;Haptic feedback&#10;3D Audio support&#10;Backward compatible"
+              />
+            </FormField>
+            <FormField label="❌ Cons (one per line)">
+              <textarea 
+                className={inputCls} 
+                rows={4} 
+                value={form.cons} 
+                onChange={e => setForm({...form, cons: e.target.value})} 
+                placeholder="No disc drive&#10;Limited storage&#10;Requires stable internet"
+              />
+            </FormField>
+          </div>
+
+          {/* Technical Specifications */}
+          <FormField label="📋 Technical Specs (key: value per line)">
+            <textarea 
+              className={inputCls} 
+              rows={5} 
+              value={form.specs} 
+              onChange={e => setForm({...form, specs: e.target.value})} 
+              placeholder="Storage: 825GB SSD&#10;Resolution: 4K UHD&#10;Frame Rate: Up to 120fps&#10;Audio: Tempest 3D&#10;Connectivity: Wi-Fi 6, Bluetooth 5.1"
+            />
+          </FormField>
+
           <FormField label="Tags (comma separated)">
             <input className={inputCls} value={form.tags} onChange={e => setForm({...form, tags: e.target.value})} placeholder="ps5, gaming, sony" />
           </FormField>
